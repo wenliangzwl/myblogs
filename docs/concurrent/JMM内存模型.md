@@ -204,9 +204,9 @@ public class VisibilityTest {
 //            shortWait(100000000);  缓存过期
 //            shortWait(100000);
 //            shortWait(1000);
-            // 可以  synchronized可见性
+            // 可以  synchronized可见性 内存屏障
 //            System.out.println("======");
-            // 可以    线程切换，重新去主存加载数据
+            // 可以    sleep 让出cpu时间片
 //            try { 
 //                Thread.sleep(1);
 //            } catch (InterruptedException e) {
