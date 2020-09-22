@@ -2,8 +2,7 @@
 
 #	Myblogs
 
-> 开始
+> JAVA 学习笔记
 
 [GitHub](https://github.com/wenliangzwl/myblogs)
-[Get Started](#quick-start)
-
+[Get Started](README)

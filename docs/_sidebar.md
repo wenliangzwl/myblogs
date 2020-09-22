@@ -1,5 +1,7 @@
 - 并发编程
   - [JMM内存模型](concurrent/JMM内存模型.md)
+  - [JAVA线程](concurrent/JAVA线程.md)
+  - [synchronized](concurrent/内置锁synchronized.md)
 - 设计模式
   - [第一章节](desgin-pattern/手写单例模式.md)
   - [工厂模式]()
