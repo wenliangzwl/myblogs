@@ -2,6 +2,7 @@
   - [JMM内存模型](concurrent/JMM内存模型.md)
   - [JAVA线程](concurrent/JAVA线程.md)
   - [synchronized](concurrent/内置锁synchronized.md)
+  - [AQS&Lock](concurrent/AQS&Lock.md)
 - JVM
    - [JVM线上监控工具](jvm/jvm线上监控工具.md)
 - 设计模式

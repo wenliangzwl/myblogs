@@ -33,7 +33,7 @@
 
 ### 线程的创建
  
- **JAVA中创建线程有2种方式**
+ **JAVA中创建线程有1种方式**
  1. new Thread()
    
  **JAVA中线程的运行(实现)方式**
@@ -42,8 +42,9 @@
  2. 实现Runnable接口，重写run方法，实现Runnable接口的实现类的实例对象作为Thread构造函数的target
  3. 通过Callable和FutureTask创建线程 
  4. 通过线程池创建线程
-     前面两种可以归结为一类：无返回值，原因很简单，通过重写run方法，run方式的返回值是void，所以没有办法返回结果。
-     后面两种可以归结成一类：有返回值，通过Callable接口，就要实现call方法，这个方法的返回值是Object，所以返回的结果可以放在Object对象中。
+ 
+ 前面两种可以归结为一类：无返回值，原因很简单，通过重写run方法，run方式的返回值是void，所以没有办法返回结果。
+ 后面两种可以归结成一类：有返回值，通过Callable接口，就要实现call方法，这个方法的返回值是Object，所以返回的结果可以放在Object对象中。
   
  **JVM中创建线程有2种方式**
  1. new java.lang.Thread().start()
