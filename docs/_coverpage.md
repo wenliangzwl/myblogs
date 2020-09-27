@@ -1,6 +1,6 @@
 ![logo](https://docsify.js.org/_media/icon.svg)
 
-#	Myblogs
+#	WLZBlogs
 
 > JAVA 学习笔记
 
