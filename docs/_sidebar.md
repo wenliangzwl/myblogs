@@ -3,9 +3,11 @@
   - [JAVA线程](concurrent/JAVA线程.md)
   - [synchronized](concurrent/内置锁synchronized.md)
   - [AQS&Lock](concurrent/AQS&Lock.md)
+  - [Fork-Join原理](concurrent/Fork-Join原理.md)
+  - [线程池](concurrent/线程池.md)
 - JVM
    - [JVM线上监控工具](jvm/jvm线上监控工具.md)
-- 设计模式
+- JAVA 集合
    - [JAVA 集合](collection/collection.md)
 - 设计模式
   - [第一章节](desgin-pattern/手写单例模式.md)

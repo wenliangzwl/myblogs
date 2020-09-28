@@ -369,7 +369,17 @@ private void doSignal(Node first) {
 
 
 ### ReentrantLock
-  同步队列
+  同步队列(独占锁,只能有一个线程执行)
+    
+    ReentrantLock 加锁解锁过程：
+        1.线程1 通过cas ,将state = 1 成功,将 exclusiveOwnerThread = thread1,
+        2.线程2， cas 失败，通过  acquireQueued(addWaiter(Node.EXCLUSIVE), arg)) 放入同步队列，
+        如果没有队列，先创建一个空节点，并将线程2的node 节点，指向空节点的 next ,再将线程2 阻塞
+        3.线程3，（步骤同上2），只是将 线程node 节点指向 线程2 node 节点
+        4.线程1 unlock释放锁,将 state = 0 exclusiveOwnerThread = null,
+        5.通过 LockSupport.unpark(线程2)，线程2 出队
+        6.线程2 通过cas 成功，将 state = 1, 将 exclusiveOwnerThread = thread2,
+        7.线程2，步骤同上4
   
 ```
 public class ReentrantLockTest {
@@ -410,3 +420,318 @@ public class ReentrantLockTest {
     
   ![加锁解锁过程](并发编程基础.assets/ReentrantLock.jpg)
   ![加锁解锁过程](并发编程基础.assets/加锁解锁过程.png)
+
+### Semaphore (计数信号量)
+   Semaphore是一个计数信号量,Semaphore经常用于限制获取资源的线程数量
+   Semaphore 信号量，用来控制同一时间，资源可被访问的线程数量，一般可用于流量的控制。
+   
+   一个计数信号量。 从概念上讲，信号量维护了一组许可。 如果有必要，在许可可用之前调用 acquire 方法会被阻塞，直到许可证可用。
+    调用 release 方法会增加了一个许可证，从而释放被阻塞的线程。
+       
+       1.声明时指定初始许可数量。
+       2.调用 acquire(int permits) 方法，指定目标许可数量。
+       3.调用 release(int permits) 方法，发布指定的许可数量。
+    在许可数量没有到达指定目标数量时，调用 acquire 方法的线程会被阻塞。
+    
+```
+public class SemaphoreTest {
+
+    public static void main(String[] args) {
+        // 声明5个窗口  state:  资源数
+        Semaphore windows = new Semaphore(3);
+
+        for (int i = 0; i < 5; i++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        // 占用窗口
+                        windows.acquire();
+                        System.out.println(Thread.currentThread().getName() + ": 开始买票");
+                        //模拟买票流程
+                        Thread.sleep(5000);
+                        System.out.println(Thread.currentThread().getName() + ": 购票成功");
+                        // 释放窗口
+                        windows.release();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
+        }
+    }
+}
+结果:
+Thread-0: 开始买票
+Thread-2: 开始买票
+Thread-1: 开始买票
+Thread-1: 购票成功
+Thread-2: 购票成功
+Thread-0: 购票成功
+Thread-4: 开始买票
+Thread-3: 开始买票
+Thread-3: 购票成功
+Thread-4: 购票成功
+```
+
+### CyclicBarrier (同步屏障CyclicBarrier)
+    
+   相对于CountDownLatch是一次性对象，一旦进入终止状态，就不能被重置，CyclicBarrier可以反复使用。
+   CyclicBarrier类似于闭锁，与闭锁的关键区别在于，闭锁用于等待事件，栅栏用于等待其他线程，其作用是让一组线程到达一个屏障（也可以叫同步点）时被阻塞，
+   直到最后一个线程到达屏障时，屏障才会开门，所有被屏障拦截的线程才会继续运行。
+
+   CyclicBarrier(栅栏)允许一组线程互相等待，直到到达某个公共屏障点 (Common Barrier Point)
+   闭锁用于等待事件，而栅栏用于等待其他线程。
+   
+   CyclicBarrier是java 5中引入的线程安全的组件。它有一个barrier的概念，主要用来等待所有的线程都执行完毕，
+   然后再去执行特定的操作。
+   
+   假如我们有很多个线程，每个线程都计算出了一些数据，然后我们需要等待所有的线程都执行完毕，再把各个线程计算出来的数据加起来，
+   的到最终的结果，那么我们就可以使用CyclicBarrier
+    
+   同步屏障有两个构造函数，第一个构造函数只需要指定需要等待的线程数量，
+   第二构造函数多了一个在特定数量的线程都到达同步屏障时优先执行的Runnable。
+   
+   CyclicBarrier(int parties)
+   CyclicBarrier(int parties, Runnable barrierAction)
+   
+   CyclicBarrier的方法如上，分别是：
+       
+       getParties()  返回需要到达同步屏障的线程数量
+       await() 等待所有线程到达
+       await(long, TimeUnit) 带时间限制的await()
+       isBroken() 判断阻塞的线程是否被中断
+       reset() 重置计数器
+       getNumberWaiting() 当前被阻塞的线程数量，该方法主要用于调试和断言
+   
+```
+public class CyclicBarrierTest {
+    public static void main(String[] args) {
+
+        CyclicBarrier cyclicBarrier = new CyclicBarrier(5);
+
+        for (int i = 0; i < 5; i++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        System.out.println(Thread.currentThread().getName() + "开始等待其他线程");
+                        cyclicBarrier.await();
+                        System.out.println(Thread.currentThread().getName() + "开始执行");
+                        // 模拟业务处理
+                        Thread.sleep(2000);
+                        System.out.println(Thread.currentThread().getName() + "执行完毕");
+
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
+
+        }
+
+    }
+}
+结果:
+    Thread-0开始等待其他线程
+    Thread-3开始等待其他线程
+    Thread-1开始等待其他线程
+    Thread-2开始等待其他线程
+    Thread-4开始等待其他线程
+    Thread-0开始执行
+    Thread-2开始执行
+    Thread-3开始执行
+    Thread-1开始执行
+    Thread-4开始执行
+    Thread-0执行完毕
+    Thread-4执行完毕
+    Thread-1执行完毕
+    Thread-2执行完毕
+    Thread-3执行完毕
+```
+   栅栏与闭锁的关键区别在于，所有的线程必须同时到达栅栏位置，才能继续执行
+```
+public class CyclicBarrierTest2 {
+
+    public static void main(String[] args) {
+
+        CyclicBarrier cyclicBarrier = new CyclicBarrier(2, new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("汇总已分别计算出的两个员工的工资");
+            }
+        });
+
+        Thread thread1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("计算出员工1的工资");
+                try {
+                    cyclicBarrier.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (BrokenBarrierException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, "thread1");
+
+        Thread thread2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("计算出员工2的工资");
+                try {
+                    cyclicBarrier.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (BrokenBarrierException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, "thread2");
+
+
+        thread1.start();
+        thread2.start();
+
+        System.out.println("====end====");
+
+
+    }
+}
+结果:
+====end====
+计算出员工1的工资
+计算出员工2的工资
+汇总已分别计算出的两个员工的工资
+```
+
+### CountDownLatch (计数器)
+
+   CountDownLatch:闭锁相当于一扇门，在闭锁到达结束状态之前，这扇门一直是关闭的，并且没有任何线程能通过，
+      当到达结束状态时，这扇门会打开并允许所有的线程通过。当闭锁到达结束状态后，将不会再改变状态，门永远保持打开状态
+    
+   CountDownLatch是并发包中提供的一个同步辅助类，在完成一组正在其他线程中执行的操作之前，它允许一个或多个线程一直等待。
+   用给定的计数值初始化CountDownLatch。调用countDown()方法将计数减一，所以在当前计数到达零之前，调用await（）方法会一直受阻塞， 直到这个CountDownLatch对象的计数值减到0为止。计数值等于0后，会释放所有等待的线程，await 的所有后续调用都将立即返回。
+   计数无法被重置，如果CountDownLatch的计数减为0时，后续有线程调用await（）方法会直接通过。
+   CountDownLatch也是通过AQS的共享模式进行实现。如果需要重置计数，请考虑使用CyclicBarrier，可以看我的另一篇CyclicBarrier源码分析
+    
+   使用原理:
+    1.创建CountDownLatch并设置计数器值。
+    2.启动多线程并且调用CountDownLatch实例的countDown()方法。
+    3.主线程调用 await() 方法，这样主线程的操作就会在这个方法上阻塞，直到其他线程完成各自的任务，count值为0，停止阻塞，主线程继续执行。
+
+  模拟并发，多个线程在某一时刻同时开始执行
+```
+public class CountDownLatchTest {
+    public static void main(String[] args) {
+        // 闭锁 如果创建的线程数小于10 ，所有线程会一直阻塞，创建线程大于10,当count=0,阻塞线程和多余线程都会执行
+        CountDownLatch countDownLatch = new CountDownLatch(10);
+
+        for (int i = 0; i < 11; i++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        synchronized (countDownLatch) {
+                            //减1
+                            countDownLatch.countDown();
+                            System.out.println(Thread.currentThread().getName()+" counts = " +
+                                    countDownLatch.getCount());
+                        }
+                        // 阻塞
+                        countDownLatch.await();
+
+                        System.out.println("concurrency counts = " + (10 - countDownLatch.getCount()));
+
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
+        }
+    }
+}
+```
+  某一线程在开始运行前等待n个线程执行完毕
+```
+public class CountDownLatchTest2 {
+    public static void main(String[] args) throws Exception{
+        CountDownLatch countDownLatch = new CountDownLatch(2) {
+            @Override
+            public void await() throws InterruptedException {
+                super.await();
+                System.out.println(Thread.currentThread().getName() + " count down is ok");
+            }
+        };
+
+        Thread thread1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println(Thread.currentThread().getName() + " is done");
+                countDownLatch.countDown();
+            }
+        }, "thread1");
+
+        Thread thread2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println(Thread.currentThread().getName() + " is done");
+                countDownLatch.countDown();
+            }
+        }, "thread2");
+        thread1.start();
+        thread2.start();
+
+        countDownLatch.await();
+        System.out.println("====end====");
+    }
+}
+结果:
+thread1 is done
+thread2 is done
+main count down is ok
+====end====
+```
+
+### CountDownLatch与CyclicBarrier、Semaphore  区别
+  
+       1.CountDownLatch的计数器只能使用一次，而CyclicBarrier的计数器可以使用reset()方法重置。所以CyclicBarrier能处理更为复杂的业务场景。
+       例如，如果计算发生错误，可以重置计数器，并让线程重新执行一次
+       2.CyclicBarrier还提供其他有用的方法，比如getNumberWaiting方法可以获得Cyclic-Barrier阻塞的线程数量。
+       isBroken()方法用来了解阻塞的线程是否被中断
+       3.CountDownLatch倾向于一个线程等多个线程，CyclicBarrier倾向于多个线程互相等待
+       4.CountDownLatch 的计数是减 1 直到 0，CyclicBarrier 是加 1，直到指定值。
+       5.CyclicBarrier 可以在最后一个线程达到屏障之前，选择先执行一个操作。
+       6.Semaphore ，需要拿到许可才能执行，并可以选择公平和非公平模式。
+
+### AQS图
+  ![AQS图](并发编程基础.assets/AQS.jpg)      
+   
+                
+   
+   
+
+   
+   
