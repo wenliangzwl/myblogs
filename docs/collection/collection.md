@@ -41,48 +41,5 @@
        LinkHashSet(HashSet+LinkedHashMap):继承于HashSet,又是基于LinkedHashMap来实现的，具有hashSet的查询效率。
 
 
-###  源码分析
-
-####  ArrayList
-
-  特性:实现了三个标记接口：RandomAccess, Cloneable, java.io.Serializable
-
-```
-public class ArrayList<E> extends AbstractList<E>
-        implements List<E>, RandomAccess, Cloneable, java.io.Serializable
-```   
-   ArrayList 是基于数组实现的，所以支持快速随机访问。 继承了AbstractList，实现了List。它是一个数组队列，提供了相关的添加、删除、修改、遍历等功能。
-   RandomAccess 接口标识着该类支持快速随机访问（只是一个定义了类型的接口，无作用）。  
-   Cloneable 接口，即覆盖了函数 clone()，能被克隆(支持拷贝)。 
-   java.io.Serializable 接口，这意味着ArrayList支持序列化，能通过序列化去传输。
-   数组的默认大小为 10。
 
 
-   浅拷贝
-        
-        基础类型的变量拷贝之后是独立的，不会随着源变量变动而变
-        String类型拷贝之后也是独立的
-        引用类型拷贝的是引用地址，拷贝前后的变量引用同一个堆中的对象
-```
-public Object clone() throws CloneNotSupportedException {
-    Study s = (Study) super.clone();
-    return s;
-}
-```
-   深拷贝
-        
-        变量的所有引用类型变量（除了String）都需要实现Cloneable（数组可以直接调用clone方法），clone方法中，引用类型需要各自调用clone，重新赋值
-        
-```
-public Object clone() throws CloneNotSupportedException {
-    Study s = (Study) super.clone();
-    s.setScore(this.score.clone());
-    return s;
-}
-```
-    ava的传参，基本类型和引用类型传参
-    java在方法传递参数时，是将变量复制一份，然后传入方法体去执行。复制的是栈中的内容
-    所以基本类型是复制的变量名和值，值变了不影响源变量
-    引用类型复制的是变量名和值（引用地址），对象变了，会影响源变量（引用地址是一样的）
-    String：是不可变对象，重新赋值时，会在常量表新生成字符串（如果已有，直接取他的引用地址），将新字符串的引用地址赋值给栈中的新变量，因此源变量不会受影响
-    

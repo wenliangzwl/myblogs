@@ -9,6 +9,9 @@
    - [JVM线上监控工具](jvm/jvm线上监控工具.md)
 - JAVA 集合
    - [JAVA 集合](collection/collection.md)
+   - [List](collection/List.md)
+   - [Queue](collection/Queue.md)
+   - [HashMap&ConcurrentHashMap](collection/HashMap-ConcurrentHashMap.md)
 - 设计模式
   - [第一章节](desgin-pattern/手写单例模式.md)
   - [工厂模式]()
