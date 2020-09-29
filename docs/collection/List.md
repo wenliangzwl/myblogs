@@ -47,7 +47,8 @@ public Object clone() throws CloneNotSupportedException {
 ```
 private static final long serialVersionUID = 8683452581122892189L;//序列化版本号（类文件签名），如果不写会默认生成，类内容的改变会影响签名变化，导致反序列化失败
 private static final int DEFAULT_CAPACITY = 10;//如果实例化时未指定容量，则在初次添加元素时会进行扩容使用此容量作为数组长度
-//static修饰，所有的未指定容量的实例(也未添加元素)共享此数组，两个空的数组有什么区别呢？ 就是第一次添加元素时知道该 elementData 从空的构造函数还是有参构造函数被初始化的。以便确认如何扩容。空的构造器则初始化为10，有参构造器则按照扩容因子扩容
+//static修饰，所有的未指定容量的实例(也未添加元素)共享此数组，两个空的数组有什么区别呢？ 就是第一次添加元素时知道该 elementData 从空的构造函数还是有参构造函数被初始化的。
+以便确认如何扩容。空的构造器则初始化为10，有参构造器则按照扩容因子扩容
 private static final Object[] EMPTY_ELEMENTDATA = {};
 private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
 transient Object[] elementData; // arrayList真正存放元素的地方，长度大于等于size
@@ -59,7 +60,7 @@ private int size;//arrayList中的元素个数
 public ArrayList() {
     this.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;
 }
-//当使用无参构造函数时是把 DEFAULTCAPACITY_EMPTY_ELEMENTDATA 赋值给 elementData。 当 initialCapacity 为零时则是把 EMPTY_ELEMENTDATA 赋值给 elementData。 当 initialCapacity 大于零时初始化一个大小为 initialCapacity 的 object 数组并赋值给 elementData。
+//当使用有参构造函数时是把 DEFAULTCAPACITY_EMPTY_ELEMENTDATA 赋值给 elementData。 当 initialCapacity 为零时则是把 EMPTY_ELEMENTDATA 赋值给 elementData。 当 initialCapacity 大于零时初始化一个大小为 initialCapacity 的 object 数组并赋值给 elementData。
 public ArrayList(int initialCapacity) {
     if (initialCapacity > 0) {
         this.elementData = new Object[initialCapacity];
@@ -512,7 +513,8 @@ private E unlinkFirst(Node<E> f) {
 
 #### 双端链表（队列Queue）
 
-    java中队列的实现就是LinkedList： 我们之所以说LinkedList 为双端链表，是因为他实现了Deque 接口；我们知道，队列是先进先出的，添加元素只能从队尾添加，删除元素只能从队头删除，Queue中的方法就体现了这种特性。 支持队列的一些操作，我们来看一下有哪些方法实现：
+    java中队列的实现就是LinkedList： 我们之所以说LinkedList 为双端链表，是因为他实现了Deque 接口；我们知道，队列是先进先出的，添加元素只能从队尾添加，删除元素只能从队头删除，Queue中的方法就体现了这种特性。
+     支持队列的一些操作，我们来看一下有哪些方法实现：
     • pop（）是栈结构的实现类的方法，返回的是栈顶元素，并且将栈顶元素删除
     • poll（）是队列的数据结构，获取对头元素并且删除队头元素
     • push（）是栈结构的实现类的方法，把元素压入到栈中
