@@ -118,7 +118,7 @@
    
    （3）Context：代表一个应用程序，对应着平时开发的一套程序，或者一个WEB-INF目录以及下面的web.xml文件；
    
-   （4）Wrapper：每一Wrapper封装着一个Servlet；
+   （4）Wrapper：每一Wrapper封装着一个Servlet（准确的说是一类servlet）；
    
    Tomcat的文件目录对照，如下图:
    
@@ -158,3 +158,62 @@
    （3）当执行到StandardWrapperValve的时候，会在StandardWrapperValve中创建FilterChain，并调用其doFilter方法来处理请求，这个FilterChain包含着我们配置的与请求相匹配的Filter和Servlet，其doFilter方法会依次调用所有的Filter的doFilter方法和Servlet的service方法，这样请求就得到了处理！
    
    （4）当所有的Pipeline-Valve都执行完之后，并且处理完了具体的请求，这个时候就可以将返回的结果交给Connector了，Connector在通过Socket的方式将结果返回给客户端。
+
+### 部署应用的三种方式
+   1. 描述符部署
+   
+   2. War包部署
+   
+   3. 文件夹部署
+   
+   另外Tomcat中是使用异步多线程的方式部署应用的
+  
+  源码体现
+```
+// package org.apache.catalina.startup.HostConfig
+
+    protected void deployApps() {
+
+        File appBase = appBase();
+        File configBase = configBase();
+        String[] filteredAppPaths = filterAppPaths(appBase.list());
+        // Deploy XML descriptors from configBase
+        // 描述符部署
+        deployDescriptors(configBase, configBase.list());
+        // Deploy WARs
+        // war包部署
+        deployWARs(appBase, filteredAppPaths);
+        // Deploy expanded folders
+        // 文件夹部署
+        deployDirectories(appBase, filteredAppPaths);
+
+    }
+```
+
+####  描述符部署
+   
+   描述符部署，在 host 里 配置Context ，path 为访问根路径， docBase 为 项目文件位置
+   
+```
+  <Host name="localhost"  appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+
+        <!-- 描述符部署 -->
+        <Context path="/HelloLuban" relaodable="false" docBase="/Users/renyong/IdeaProjects/HelloServlet/target/HelloServlet"/>
+
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="localhost_access_log." suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+
+      </Host>
+```
+
+####  War包部署
+   
+   将war 包放至webapps 文件夹下即可，启动tomcat 会将 war 包 解压为文件夹，访问路径为解压文件夹名，类似文件夹部署。
+   
+   为什么启动tomcat 会自动将 war 包解压，因为 在 server.xml 中 host 标签内 有一个 unpackWARs="true" 属性 ，为true 会自动将 war 包解压
+
+#### 文件夹部署
+   
+   将文件夹 放至webapps 文件夹下即可，访问根路径即为 文件夹名
