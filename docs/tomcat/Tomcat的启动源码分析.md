@@ -130,8 +130,154 @@
         method.invoke(catalinaDaemon, param);
     }
 ```
+
+####  解析server.xml
+```
+1. Catalina catalina = new Catalina(); // 没做其他事情
+2. catalina.setAwait(true); 
+3. 以下步骤是解析servler.xml
+4. StandardServer server = new StandardServer();  // 没做其他事情
+5. catalina.setServer(server);
+6. server.addLifecycleListener(...);
+7. StandardService service = new StandardService(); // 没做其他事情
+8. server.addService(service);
+9. Connector connector = new Connector();  // 会根据配置初始化protocolHandler
+    a. endpoint = new JIoEndpoint();    // 初始化Endpoint， JioEndpoint中会setMaxConnections(0);
+    b. cHandler = new Http11ConnectionHandler(this);  // 
+    c. ((JIoEndpoint) endpoint).setHandler(cHandler);    // endpoint对应的连接处理器
+10. service.addConnector(connector);   
+11. Engine engine = new StandardEngine();  // pipeline.setBasic(new StandardEngineValve());
+12. service.setContainer(engine);
+13. Host host = new StandardHost();    // pipeline.setBasic(new StandardHostValve());
+14. engine.addChild(host);
+15. Context context = new StandardContext();  // pipeline.setBasic(new StandardContextValve());
+16. host.addChild(context);
+17. engine.setParentClassLoader(Catalina.class.getClassLoader()); // 实际调用的是ContainerBase.setParentClassLoader方法，设置属性parentClassLoader为shareClassLoader
+18. server.setCatalina(catalina);
+19. server.init();   // 开始初始化
+20. catalina.start();  // 开始启动
+```
+   
+   解析server.xml最主要的作用就是
+    
+    1. 把server.xml中定义的节点都生成对应的java对象，比如在解析某一个Host节点时就会对应生成一个StandardHost对象
+    
+    2. 把server.xml中定义的节点的层级关系解析出来，比如StandardContext对象.addChild(StandardHost对象)
+    
+    3. 设置每个容器的pipeline的基础Valve
+
+#### 初始化
+```
+Tomcat初始化主要做了以下事情：
+    1. 将StandardServer实例注册到JMX
+    2. 将StringCache实例注册到JMX
+    3. 将StandardService实例注册到JMX
+    4. container.init(); // 对StandardEngine进行初始化
+        a. 初始化startStopExecutor线程池，用来启动子容器的
+    5. connector.init(); // 对Connector进行初始化
+        a. adapter = new CoyoteAdapter(this);
+        b. protocolHandler.setAdapter(adapter);
+        c. protocolHandler.init(); // 初始化协议处理器
+            ⅰ. endpoint.init();    // 初始化协议处理器对应的endpoint，默认在初始化的时候就会bind
+                1. endpoint.bind()
+                    a. serverSocketFactory = new DefaultServerSocketFactory(this);
+                    b. serverSocket = serverSocketFactory.createSocket(getPort(), getBacklog(), getAddress());
+        d. mapperListener.init(); // 没做什么其他的
+```
+
+   补充点：MBeanRegistration这个类是完成JMX的功能，就是我们俗称的监控管理功能，之前我们讲的使用jconsole查看Tomcat也就是通过JMX玩的。
+
+#### 启动
+
+   1.启动容器
+    
+ 启动容器主要是部署应用，部署应用分为两部分：
  
- ### Tomcat7 BIO处理请求过程
+   1. 部署server.xml中定义的Context
+     
+   2. 部署webapp文件夹下的Context
+   
+ 部署一个应用主要分为以下步骤:
+    
+    1.生成Context对象，server.xml中定义的Context在解析server.xml时就已经生成了，webapp文件夹下的是在部署之前生成的
+    
+    2.为每个应用生成一个WebappClassLoader
+    
+    3.解析web.xml
+    
+    4.设置Context对象中的属性，比如有哪些Wrapper
+   
+   2.启动Connector
+   
+      1.启动Endpoint开始接收请求
+      
+      2.构造Mapper对象，用来处理请求时，快速解析出当前请求对应哪个Context，哪个Wrapper
+```
+1. catalina.start()
+2. getServer().start();
+    a. fireLifecycleEvent(CONFIGURE_START_EVENT, null);
+    b. services[i].start();
+        ⅰ. container.start(); // 启动StandardEngine
+            1. results.add(startStopExecutor.submit(new StartChild(children[i]))); // 每个Childrean容器（StandardHost）用单独的线程启动
+                a. results.add(startStopExecutor.submit(new StartChild(children[i]))); // 每个Childrean容器（StandardContext）用单独的线程启动
+                    ⅰ. 以下为一个应用的启动过程
+                    ⅱ. 生成一个WebappLoader
+                    ⅲ. 启动WebappLoader
+                        1. 生成WebappClassLoader
+                        2. 将/WEB-INF/classes和/WEB-INF/lib目录作为loaderRepositories，后面应用如果加载类就从这两个目录加载
+                    ⅳ. fireLifecycleEvent(Lifecycle.CONFIGURE_START_EVENT, null);
+                        1. 解析web.xml文件
+                            a. 创建WebXml对象
+                            b. 解析web.xml文件内容设置WebXml对象属性
+                                ⅰ. WebXML对象有以下几个主要属性
+                                ⅱ. Map<String,ServletDef> servlets
+                                ⅲ. Map<String,String> servletMappings
+                                ⅳ. Map<String,FilterDef> filters
+                                ⅴ. Set<FilterMap> filterMaps
+                            c. 收集ServletContainerInitializers
+                            d. 将WebXML对象中的信息配置到Context对象中
+                                ⅰ. context.addFilterDef(filter);
+                                ⅱ. context.addFilterMap(filterMap);
+                                ⅲ. context.addApplicationListener(listener);
+                                ⅳ. 遍历每个ServletDef，生成一个Wrapper，context.addChild(wrapper);
+                    ⅴ. 调用ServletContainerInitializers
+                b. 上面会启动在server.xml中定义的Context，接下来会启动webapp文件夹下面的Context，是通过HostConfig触发的，调用HostConfig的start()
+                    ⅰ. deployApps();
+                        1. deployDescriptors(configBase, configBase.list()); // 描述符部署
+                        2. deployWARs(appBase, filteredAppPaths); // war包部署
+                        3. deployDirectories(appBase, filteredAppPaths); // 文件夹部署
+                            a. 生成Context对象
+                            b. context.setName(cn.getName());
+                            c. context.setPath(cn.getPath());
+                            d. host.addChild(context);  // 这里会启动context，启动Context就会执行和上面类似的步骤
+            2. threadStart(); // 启动一个background线程
+        ⅱ. executor.start();  // 启动线程池, 如果用的默认连接池，这里不会启动
+        ⅲ. connector.start(); // 启动请求连接器
+            1. protocolHandler.start(); // 启动接收连接
+                a. endpoint.start(); // 启动Endpoint
+                    ⅰ. 如果没有配置Executor，就创建一个默认的Executor
+                    ⅱ. 初始化connectionLimitLatch
+                    ⅲ. 如果是NIO，则运行Poller线程
+                    ⅳ. 运行Acceptor线程
+            2. mapperListener.start();
+                a. 主要初始化Mapper对象，Mapper对象的结构层级如下
+                    ⅰ. Mapper中有属性Host[] hosts
+                    ⅱ. Host中有属性ContextList contextList
+                    ⅲ. ContextList中有属性Context[] contexts
+                    ⅳ. Context中有属性ContextVersion[] versions
+                    ⅴ. ContextVersion中有如下属性
+                        1. Wrapper[] exactWrappers，保存需要根据Servlet名字精确匹配的Wrapper
+                        2. Wrapper[] wildcardWrappers，保存需要根据Servlet名字匹配以("/*")结尾的Wrapper
+                        3. Wrapper[] extensionWrappers，保存需要根据Servlet名字匹配以("*.")开始的Wrapper
+                        4. Wrapper中有如下两个属性
+                            a. name，Wrapper的名字
+                            b. object，真实的Wrapper的对象
+3. catalina.await();  // 使用ServerSocket来监听shutdown命令来阻塞
+4. catalina.stop();  // 如果阻塞被解开，那么开始停止流程
+```
+ 
+ 
+### Tomcat7 BIO处理请求过程
    
    ![](tomcat.assets/tomcat架构平视图.jpg)
 
@@ -360,64 +506,21 @@
                             state = handler.process(socket,status);
                         }
                     }
-                    // 如果Socket的状态是被关闭，那么就减掉连接数并关闭socket
-                    // 那么Socket的状态是在什么时候被关闭的？
-                    if (state == SocketState.CLOSED) {
-                        // Close socket
-                        if (log.isTraceEnabled()) {
-                            log.trace("Closing socket:"+socket);
-                        }
-                        countDownConnection();
-                        try {
-                            socket.getSocket().close();
-                        } catch (IOException e) {
-                            // Ignore
-                        }
-                    } else if (state == SocketState.OPEN ||
-                            state == SocketState.UPGRADING ||
-                            state == SocketState.UPGRADING_TOMCAT  ||
-                            state == SocketState.UPGRADED){
-                        socket.setKeptAlive(true);
-                        socket.access();
-                        launch = true;
-                    } else if (state == SocketState.LONG) {
-                        // socket不会关闭，但是当前线程会执行结束
-                        socket.access();
-                        waitingRequests.add(socket);
-                    }
+                    // 省略其他代码........
+
                 } finally {
-                    if (launch) {
-                        try {
-                            getExecutor().execute(new SocketProcessor(socket, SocketStatus.OPEN_READ));
-                        } catch (RejectedExecutionException x) {
-                            log.warn("Socket reprocessing request was rejected for:"+socket,x);
-                            try {
-                                //unable to handle connection at this time
-                                handler.process(socket, SocketStatus.DISCONNECT);
-                            } finally {
-                                countDownConnection();
-                            }
-
-
-                        } catch (NullPointerException npe) {
-                            if (running) {
-                                log.error(sm.getString("endpoint.launch.fail"),
-                                        npe);
-                            }
-                        }
-                    }
-                }
+                    // 省略其他代码........
             }
             socket = null;
             // Finish up this request
         }
 ```
 
-#### AbstractProtocol<S>
+#### AbstractProtocol
    
    1.创建处理器 processor = createProcessor(); // HTTP11NIOProce
    
-   2.大多数情况下走这个分支  state = processor.process(wrapper);
+   2.调用 处理器的 process 方法  state = processor.process(wrapper);
    
    
 ```
@@ -486,119 +589,35 @@ public SocketState process(SocketWrapper<S> wrapper,
                 state = processor.process(wrapper);
             }
 
-            if (state != SocketState.CLOSED && processor.isAsync()) {
-                // 代码执行到这里，就去判断一下之前有没有调用过complete方法
-                // 如果调用，那么当前的AsyncState就会从COMPLETE_PENDING-->调用doComplete方法改为COMPLETING，SocketState为ASYNC_END
-                // 如果没有调用，那么当前的AsyncState就会从STARTING-->STARTED，SocketState为LONG
-                //
-                // 状态转换，有三种情况
-                // 1. COMPLETE_PENDING--->COMPLETING，COMPLETE_PENDING是在调用complete方法时候由STARTING改变过来的
-                // 2. STARTING---->STARTED，STARTED的下一个状态需要有complete方法来改变，会改成COMPLETING
-                // 3. COMPLETING---->DISPATCHED
-                state = processor.asyncPostProcess();
-            }
-
-            if (state == SocketState.UPGRADING) {
-                // Get the HTTP upgrade handler
-                HttpUpgradeHandler httpUpgradeHandler =
-                        processor.getHttpUpgradeHandler();
-                // Release the Http11 processor to be re-used
-                release(wrapper, processor, false, false);
-                // Create the upgrade processor
-                processor = createUpgradeProcessor(
-                        wrapper, httpUpgradeHandler);
-                // Mark the connection as upgraded
-                wrapper.setUpgraded(true);
-                // Associate with the processor with the connection
-                connections.put(socket, processor);
-                httpUpgradeHandler.init((WebConnection) processor);
-            } else if (state == SocketState.UPGRADING_TOMCAT) {
-                // Get the UpgradeInbound handler
-                org.apache.coyote.http11.upgrade.UpgradeInbound inbound =
-                        processor.getUpgradeInbound();
-                // Release the Http11 processor to be re-used
-                release(wrapper, processor, false, false);
-                // Create the light-weight upgrade processor
-                processor = createUpgradeProcessor(wrapper, inbound);
-                inbound.onUpgradeComplete();
-            }
-            if (getLog().isDebugEnabled()) {
-                getLog().debug("Socket: [" + wrapper +
-                        "], Status in: [" + status +
-                        "], State out: [" + state + "]");
-            }
-            // 如果在访问异步servlet时，代码执行到这里，已经调用过complete方法了，那么状态就是SocketState.ASYNC_END
+            //  省略其他代码........
+  
         } while (state == SocketState.ASYNC_END ||
                 state == SocketState.UPGRADING ||
                 state == SocketState.UPGRADING_TOMCAT);
 
-        if (state == SocketState.LONG) {
-          
-            connections.put(socket, processor);
-            longPoll(wrapper, processor);
-        } else if (state == SocketState.OPEN) {
-            // In keep-alive but between requests. OK to recycle
-            // processor. Continue to poll for the next request.
-            connections.remove(socket);
-            release(wrapper, processor, false, true);
-        } else if (state == SocketState.SENDFILE) {
-         
-            connections.put(socket, processor);
-        } else if (state == SocketState.UPGRADED) {
-            // Need to keep the connection associated with the processor
-            connections.put(socket, processor);
-         
-            if (status != SocketStatus.OPEN_WRITE) {
-                longPoll(wrapper, processor);
-            }
-        } else {
-            // Connection closed. OK to recycle the processor. Upgrade
-            // processors are not recycled.
-            connections.remove(socket);
-            if (processor.isUpgrade()) {
-                processor.getHttpUpgradeHandler().destroy();
-            } else if (processor instanceof org.apache.coyote.http11.upgrade.UpgradeProcessor) {
-                // NO-OP
-            } else {
-                release(wrapper, processor, true, false);
-            }
-        }
+
+        //  省略其他代码........
         return state;
+
     } catch(java.net.SocketException e) {
-        // SocketExceptions are normal
-        getLog().debug(sm.getString(
-                "abstractConnectionHandler.socketexception.debug"), e);
-    } catch (java.io.IOException e) {
-        // IOExceptions are normal
-        getLog().debug(sm.getString(
-                "abstractConnectionHandler.ioexception.debug"), e);
-    }
- 
-    catch (Throwable e) {
-        ExceptionUtils.handleThrowable(e);
       
-        getLog().error(
-                sm.getString("abstractConnectionHandler.error"), e);
+    } catch (java.io.IOException e) {
+    
+    } catch (Throwable e) {
+       
     }
-    // Make sure socket/processor is removed from the list of current
-    // connections
-    connections.remove(socket);
-    // Don't try to add upgrade processors back into the pool
-    if (!(processor instanceof org.apache.coyote.http11.upgrade.UpgradeProcessor)
-            && !processor.isUpgrade()) {
-        release(wrapper, processor, true, false);
-    }
+    //  省略其他代码........
     return SocketState.CLOSED;
 }
 ```
 
-####  调用 AbstractProtocol 的具体实现类 以 AbstractHttp11Processor<S> 为例
+####  调用 处理器 的抽象类 以 AbstractHttp11Processor<S> 为例
  
-   解析请求行
+   1.解析请求行
    
-   解析请求头
+   2.解析请求头
    
-   交给容器处理请求  adapter.service(request, response);  调用容器进行处理, 直接调用的StandardEngineValve,然后根据管道依次调用四大容器
+   3.交给容器处理请求  adapter.service(request, response);  调用容器进行处理, 直接调用的 StandardEngineValve,然后根据管道依次调用四大容器
    
 ```
 // package org.apache.coyote.http11.AbstractHttp11Processor<S>
@@ -606,6 +625,7 @@ public SocketState process(SocketWrapper<S> wrapper,
 @Override
 public SocketState process(SocketWrapper<S> socketWrapper)
     throws IOException {
+
     RequestInfo rp = request.getRequestProcessor();
     rp.setStage(org.apache.coyote.Constants.STAGE_PARSE);   // 设置请求状态为解析状态
 
@@ -680,34 +700,9 @@ public SocketState process(SocketWrapper<S> socketWrapper)
                 }
             }
         } catch (IOException e) {
-            if (getLog().isDebugEnabled()) {
-                getLog().debug(
-                        sm.getString("http11processor.header.parse"), e);
-            }
-            setErrorState(ErrorState.CLOSE_NOW, e);
-            break;
+           //  省略其他代码........
         } catch (Throwable t) {
-            ExceptionUtils.handleThrowable(t);
-            UserDataHelper.Mode logMode = userDataHelper.getNextMode();
-            if (logMode != null) {
-                String message = sm.getString(
-                        "http11processor.header.parse");
-                switch (logMode) {
-                    case INFO_THEN_DEBUG:
-                        message += sm.getString(
-                                "http11processor.fallToDebug");
-                        //$FALL-THROUGH$
-                    case INFO:
-                        getLog().info(message, t);
-                        break;
-                    case DEBUG:
-                        getLog().debug(message, t);
-                }
-            }
-            // 400 - Bad Request
-            response.setStatus(400);
-            setErrorState(ErrorState.CLOSE_CLEAN, t);
-            getAdapter().log(request, response, 0);
+           //  省略其他代码........
         }
 
         if (!getErrorState().isError()) {
@@ -741,12 +736,10 @@ public SocketState process(SocketWrapper<S> socketWrapper)
         if (!getErrorState().isError()) {
             try {
                 rp.setStage(org.apache.coyote.Constants.STAGE_SERVICE); // 设置请求的状态为服务状态，表示正在处理请求
+                
+                // 交给容器处理请求
                 adapter.service(request, response); // 交给容器处理请求
-                // Handle when the response was committed before a serious
-                // error occurred.  Throwing a ServletException should both
-                // set the status to 500 and set the errorException.
-                // If we fail here, then the response is likely already
-                // committed, so we can't try and set headers.
+              
                 if(keepAlive && !getErrorState().isError() && (
                         response.getErrorException() != null ||
                                 (!isAsync() &&
@@ -757,24 +750,9 @@ public SocketState process(SocketWrapper<S> socketWrapper)
             } catch (InterruptedIOException e) {
                 setErrorState(ErrorState.CLOSE_NOW, e);
             } catch (HeadersTooLargeException e) {
-                getLog().error(sm.getString("http11processor.request.process"), e);
-                // The response should not have been committed but check it
-                // anyway to be safe
-                if (response.isCommitted()) {
-                    setErrorState(ErrorState.CLOSE_NOW, e);
-                } else {
-                    response.reset();
-                    response.setStatus(500);
-                    setErrorState(ErrorState.CLOSE_CLEAN, e);
-                    response.setHeader("Connection", "close"); // TODO: Remove
-                }
+               //  省略其他代码........
             } catch (Throwable t) {
-                ExceptionUtils.handleThrowable(t);
-                getLog().error(sm.getString("http11processor.request.process"), t);
-                // 500 - Internal Server Error
-                response.setStatus(500);
-                setErrorState(ErrorState.CLOSE_CLEAN, t);
-                getAdapter().log(request, response, 0);
+               //  省略其他代码........
             }
         }
 
@@ -783,14 +761,10 @@ public SocketState process(SocketWrapper<S> socketWrapper)
 
         if (!isAsync() && !comet) {
             if (getErrorState().isError()) {
-                // If we know we are closing the connection, don't drain
-                // input. This way uploading a 100GB file doesn't tie up the
-                // thread if the servlet has rejected it.
+             
                 getInputBuffer().setSwallowInput(false);
             } else {
-                // Need to check this again here in case the response was
-                // committed before the error that requires the connection
-                // to be closed occurred.
+               
                 checkExpectationAndResponseStatus();
             }
             // 当前http请求已经处理完了，做一些收尾工作
@@ -799,8 +773,7 @@ public SocketState process(SocketWrapper<S> socketWrapper)
 
         rp.setStage(org.apache.coyote.Constants.STAGE_ENDOUTPUT); // 请求状态为输出结束
 
-        // If there was an error, make sure the request is counted as
-        // and error, and update the statistics counter
+      
         if (getErrorState().isError()) {
             response.setStatus(500);
         }
@@ -832,42 +805,283 @@ public SocketState process(SocketWrapper<S> socketWrapper)
             break;
         }
     }
-    // 至此，循环结束
 
-    rp.setStage(org.apache.coyote.Constants.STAGE_ENDED);
-
-    // 主要流程就是将socket的状态设置为CLOSED
-    if (getErrorState().isError() || endpoint.isPaused()) {
-        return SocketState.CLOSED;
-    } else if (isAsync() || comet) {
-        // 异步servlet
-        return SocketState.LONG;
-    } else if (isUpgrade()) {
-        return SocketState.UPGRADING;
-    } else if (getUpgradeInbound() != null) {
-        return SocketState.UPGRADING_TOMCAT;
-    } else {
-        if (sendfileInProgress) {
-            return SocketState.SENDFILE;
-        } else {
-            // openSocket为true，表示不要关闭socket
-            if (openSocket) {
-                // readComplete表示本次读数据是否完成，比如nio中可能就没有读完数据，还需要从socket中读数据
-                if (readComplete) {
-                    return SocketState.OPEN;
-                } else {
-                    // nio可能会走到这里
-                    return SocketState.LONG;
-                }
-            } else {
-                return SocketState.CLOSED;
-            }
-        }
-    }
+    //  省略其他代码........
 }
 
 ```
 
+#### 调用容器进行处理, 直接调用的 StandardEngineValve,然后根据管道依次调用四大容器
+  
+   // 调用 StandardHostValve 的 invoke 方法
+   host.getPipeline().getFirst().invoke(request, response);
+     》// 调用 StandardContextValve 的 invoke 方法
+      context.getPipeline().getFirst().invoke(request, response);
+        》// 调用 StandardWrapperValve 的 invoke 方法
+          wrapper.getPipeline().getFirst().invoke(request, response);
+  
+  最后调用StandardWrapperValve 的invoke 方法
+   
+   filterChain.doFilter(request.getRequest(),response.getResponse());
+
+```
+@Override
+public final void invoke(Request request, Response response)
+    throws IOException, ServletException {
+
+    // Initialize local variables we may need
+    boolean unavailable = false;
+    Throwable throwable = null;
+    // This should be a Request attribute...
+    long t1=System.currentTimeMillis();
+    requestCount.incrementAndGet();
+    StandardWrapper wrapper = (StandardWrapper) getContainer(); // // 属于哪个Wrapper
+    Servlet servlet = null;
+    Context context = (Context) wrapper.getParent();  // 属于哪个Context
+
+    // Check for the application being marked unavailable
+    if (!context.getState().isAvailable()) {
+        response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                       sm.getString("standardContext.isUnavailable"));
+        unavailable = true;
+    }
+
+    // Check for the servlet being marked unavailable
+    // 如果Context可用，但是Wrapper不可用, 在定义servlet时，可以设置enabled
+    if (!unavailable && wrapper.isUnavailable()) {
+        container.getLogger().info(sm.getString("standardWrapper.isUnavailable",
+                wrapper.getName()));
+        long available = wrapper.getAvailable();
+        if ((available > 0L) && (available < Long.MAX_VALUE)) {
+            response.setDateHeader("Retry-After", available);
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    sm.getString("standardWrapper.isUnavailable",
+                            wrapper.getName()));
+        } else if (available == Long.MAX_VALUE) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                    sm.getString("standardWrapper.notFound",
+                            wrapper.getName()));
+        }
+        unavailable = true;
+    }
+
+    // Allocate a servlet instance to process this request
+    try {
+        if (!unavailable) {
+            servlet = wrapper.allocate();
+        }
+    } catch (UnavailableException e) {
+        container.getLogger().error(
+                sm.getString("standardWrapper.allocateException",
+                        wrapper.getName()), e);
+        long available = wrapper.getAvailable();
+        if ((available > 0L) && (available < Long.MAX_VALUE)) {
+            response.setDateHeader("Retry-After", available);
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                       sm.getString("standardWrapper.isUnavailable",
+                                    wrapper.getName()));
+        } else if (available == Long.MAX_VALUE) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                       sm.getString("standardWrapper.notFound",
+                                    wrapper.getName()));
+        }
+    } catch (ServletException e) {
+        container.getLogger().error(sm.getString("standardWrapper.allocateException",
+                         wrapper.getName()), StandardWrapper.getRootCause(e));
+        throwable = e;
+        exception(request, response, e);
+    } catch (Throwable e) {
+        ExceptionUtils.handleThrowable(e);
+        container.getLogger().error(sm.getString("standardWrapper.allocateException",
+                         wrapper.getName()), e);
+        throwable = e;
+        exception(request, response, e);
+        servlet = null;
+    }
+
+    // Identify if the request is Comet related now that the servlet has been allocated
+    boolean comet = false;
+    if (servlet instanceof CometProcessor && Boolean.TRUE.equals(request.getAttribute(
+            Globals.COMET_SUPPORTED_ATTR))) {
+        comet = true;
+        request.setComet(true);
+    }
+
+    MessageBytes requestPathMB = request.getRequestPathMB();
+    DispatcherType dispatcherType = DispatcherType.REQUEST;
+    if (request.getDispatcherType()==DispatcherType.ASYNC) dispatcherType = DispatcherType.ASYNC;
+    request.setAttribute(Globals.DISPATCHER_TYPE_ATTR,dispatcherType);
+    request.setAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR,
+            requestPathMB);
+    // Create the filter chain for this request
+    ApplicationFilterFactory factory =
+        ApplicationFilterFactory.getInstance();
+
+    ApplicationFilterChain filterChain =
+        factory.createFilterChain(request, wrapper, servlet);
+
+    // Reset comet flag value after creating the filter chain
+    request.setComet(false);
+
+    // Call the filter chain for this request
+    // NOTE: This also calls the servlet's service() method
+    try {
+        if ((servlet != null) && (filterChain != null)) {
+            // Swallow output if needed
+            if (context.getSwallowOutput()) {
+                try {
+                    SystemLogHandler.startCapture();
+                    if (request.isAsyncDispatching()) {
+                        request.getAsyncContextInternal().doInternalDispatch();
+                    } else if (comet) {
+                        filterChain.doFilterEvent(request.getEvent());
+                        request.setComet(true);
+                    } else {
+                        // 实际传递的不是  Request，Response 类 ，而是  RequestFacade，ResponseFacade
+                        //  Request -> RequestFacade ，Response->ResponseFacade
+                        filterChain.doFilter(request.getRequest(),
+                                response.getResponse());
+                    }
+                } finally {
+                    String log = SystemLogHandler.stopCapture();
+                    if (log != null && log.length() > 0) {
+                        context.getLogger().info(log);
+                    }
+                }
+            } else {
+                if (request.isAsyncDispatching()) {
+                    request.getAsyncContextInternal().doInternalDispatch();
+                } else if (comet) {
+                    request.setComet(true);
+                    filterChain.doFilterEvent(request.getEvent());
+                } else {
+                    filterChain.doFilter
+                        (request.getRequest(), response.getResponse());
+                }
+            }
+
+        }
+    } catch (ClientAbortException e) {
+        throwable = e;
+        exception(request, response, e);
+    } catch (IOException e) {
+      //  省略其他代码........
+    } catch (UnavailableException e) {
+       //  省略其他代码........
+    } catch (ServletException e) {
+       //  省略其他代码........
+    } catch (Throwable e) {
+       //  省略其他代码........
+    }
+
+   //  省略其他代码........
+}
+```
+
+###  调用 doFilter 
+   
+   1.执行filter的逻辑
+   2.执行servlet
+    
+```
+// package org.apache.catalina.core.ApplicationFilterChain
+
+@Override
+    public void doFilter(ServletRequest request, ServletResponse response)
+        throws IOException, ServletException {
+
+        if( Globals.IS_SECURITY_ENABLED ) {
+           // //  省略其他代码........
+        } else {
+            internalDoFilter(request,response);
+        }
+    }
+```
+```
+// package org.apache.catalina.core.ApplicationFilterChain
+
+private void internalDoFilter(ServletRequest request,
+                              ServletResponse response)
+    throws IOException, ServletException {
+
+    // Call the next filter if there is one
+    if (pos < n) {
+        ApplicationFilterConfig filterConfig = filters[pos++];
+        Filter filter = null;
+        try {
+            filter = filterConfig.getFilter();
+            support.fireInstanceEvent(InstanceEvent.BEFORE_FILTER_EVENT,
+                                      filter, request, response);
+
+            if (request.isAsyncSupported() && "false".equalsIgnoreCase(
+                    filterConfig.getFilterDef().getAsyncSupported())) {
+                request.setAttribute(Globals.ASYNC_SUPPORTED_ATTR,
+                        Boolean.FALSE);
+            }
+            if( Globals.IS_SECURITY_ENABLED ) {
+              //  省略其他代码........
+
+            } else {
+                // 执行filter的逻辑
+                filter.doFilter(request, response, this);
+            }
+
+            support.fireInstanceEvent(InstanceEvent.AFTER_FILTER_EVENT,
+                                      filter, request, response);
+        } catch (IOException e) {
+         //  省略其他代码........
+        } catch (ServletException e) {
+          //  省略其他代码........
+        } catch (RuntimeException e) {
+          //  省略其他代码........
+        } catch (Throwable e) {
+          //  省略其他代码........
+        }
+        return;
+    }
+
+    // We fell off the end of the chain -- call the servlet instance
+    try {
+        if (ApplicationDispatcher.WRAP_SAME_OBJECT) {
+            lastServicedRequest.set(request);
+            lastServicedResponse.set(response);
+        }
+
+        support.fireInstanceEvent(InstanceEvent.BEFORE_SERVICE_EVENT,
+                                  servlet, request, response);
+        if (request.isAsyncSupported()
+                && !support.getWrapper().isAsyncSupported()) {
+            request.setAttribute(Globals.ASYNC_SUPPORTED_ATTR,
+                    Boolean.FALSE);
+        }
+        // Use potentially wrapped request from this point
+        if ((request instanceof HttpServletRequest) &&
+            (response instanceof HttpServletResponse)) {
+
+            if( Globals.IS_SECURITY_ENABLED ) {
+               //  省略其他代码........
+            } else {
+                // 执行servlet  
+                servlet.service(request, response);
+            }
+        } else {
+            servlet.service(request, response);
+        }
+        support.fireInstanceEvent(InstanceEvent.AFTER_SERVICE_EVENT,
+                                  servlet, request, response);
+    } catch (IOException e) {
+      //  省略其他代码........
+    } catch (ServletException e) {
+      //  省略其他代码........
+    } catch (RuntimeException e) {
+       //  省略其他代码........
+    } catch (Throwable e) {
+      //  省略其他代码........
+    } finally {
+       //  省略其他代码........
+    }
+}
+```
 
 
 
