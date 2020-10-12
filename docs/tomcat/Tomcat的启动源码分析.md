@@ -611,7 +611,7 @@ public SocketState process(SocketWrapper<S> wrapper,
 }
 ```
 
-####  调用 处理器 的抽象类 以 AbstractHttp11Processor<S> 为例
+####  调用 处理器 的抽象类 以 AbstractHttp11Processor 为例
  
    1.解析请求行
    
