@@ -1,38 +1,11 @@
-- 并发编程
-  - [JMM内存模型](concurrent/JMM内存模型.md)
-  - [JAVA线程](concurrent/JAVA线程.md)
-  - [synchronized](concurrent/内置锁synchronized.md)
-  - [AQS&Lock](concurrent/AQS&Lock.md)
-  - [Fork-Join原理](concurrent/Fork-Join原理.md)
-  - [线程池](concurrent/线程池.md)
+- [并发编程](concurrent/_sidebar.md)
 - JVM
    - [JVM线上监控工具](jvm/jvm线上监控工具.md)
-- JAVA 集合
-   - [JAVA 集合](collection/collection.md)
-   - [List](collection/List.md)
-   - [Queue](collection/Queue.md)
-   - [HashMap&ConcurrentHashMap](collection/HashMap-ConcurrentHashMap.md)
-- ORM框架-mybatis
-  - [mybatis 入门](mybatis/mybatis.md)
-  - [mybatis源码分析](mybatis/mybatis源码分析.md)
-  - [spring-mybatis](mybatis/spring-mybatis.md)
-- Spring 框架
-  - [初识spring](spring/spring.md)
-  - [IOC工作原理](spring/ioc工作原理.md)
-  - [spring的扩展](spring/spring的扩展.md)
-  - [spring AOP](spring/spring-aop.md)
-  - [spring事务](spring/spring事务.md)
-  - [Spring MVC](spring/spring-mvc.md)
-  - [Spring Boot](spring/springBoot.md)
-  - [Spring Boot 原理及实战](spring/springBoot原理及实战.md)
-  - [spring Boot内嵌容器及集成springmvc](spring/springBoot内嵌容器及集成springmvc.md)
-- Tomcat
-  - [Tomcat](tomcat/tomcat.md)
-  - [Tomcat的启动源码分析](tomcat/Tomcat的启动源码分析.md)
-  - [Tomcat 组件](tomcat/Tomcat组件.md)
-- 设计模式
-  - [第一章节](desgin-pattern/手写单例模式.md)
-  - [工厂模式]()
-  - [原型模式]()
-  - [代理模式]()
+- [JAVA 集合](collection/_sidebar.md)
+- [MyBatis](mybatis/_sidebar.md)
+- [Spring 框架](spring/_sidebar.md)
+- [Tomcat](tomcat/_sidebar.md)
+- netty
+  - [网络基础和JAVA-IO](netty/网络基础和JAVA-IO.md)
+- [设计模式](desgin-pattern/_sidebar.md)
 - 数据库
