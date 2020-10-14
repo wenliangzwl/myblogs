@@ -1,6 +1,6 @@
 - JAVA 集合
-   - [JAVA 集合](collection.md)
-   - [List](List.md)
-   - [Queue](Queue.md)
-   - [HashMap&ConcurrentHashMap](HashMap-ConcurrentHashMap.md)
+   - [JAVA 集合](collection/collection.md)
+   - [List](collection/List.md)
+   - [Queue](collection/Queue.md)
+   - [HashMap&ConcurrentHashMap](collection/HashMap-ConcurrentHashMap.md)
 - [首页](../README.md)
