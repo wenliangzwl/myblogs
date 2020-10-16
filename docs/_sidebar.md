@@ -6,6 +6,7 @@
 - [Spring 框架](spring/_sidebar.md)
 - [Tomcat](tomcat/_sidebar.md)
 - [Nginx](nginx/_sidebar.md)
+- [zookeeper](zookeeper/_sidebar.md)
 - netty
   - [网络基础和JAVA-IO](netty/网络基础和JAVA-IO.md)
 - [设计模式](desgin-pattern/_sidebar.md)
