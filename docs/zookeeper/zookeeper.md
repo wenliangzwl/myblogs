@@ -210,9 +210,9 @@ server.3=localhost:2889:3889
 
 #### Zookeeper中的CAP
    
-   Zookeeper至少满足了CP，牺牲了可用性，比如现在集群中有Leader和Follower两种角色，那么当其中任意一台服务器挂掉了，都要重新进行选举，在选举过程中，集群是不可用的，这就是牺牲的可用性。
+   Zookeeper至少满足了**CP**，牺牲了可用性，比如现在集群中有Leader和Follower两种角色，那么当其中任意一台服务器挂掉了，都要重新进行选举，在选举过程中，集群是不可用的，这就是牺牲的可用性。
    
-   但是，如果集群中有Leader、Follower、Observer三种角色，那么如果挂掉的是Observer，那么对于集群来说并没有影响，集群还是可以用的，只是Observer节点的数据不同了，从这个角度考虑，Zookeeper又是牺牲了一致性，满足了AP
+   但是，如果集群中有Leader、Follower、Observer三种角色，那么如果挂掉的是Observer，那么对于集群来说并没有影响，集群还是可以用的，只是Observer节点的数据不同了，从这个角度考虑，Zookeeper又是牺牲了一致性，满足了**AP**
 
 ### Zookeeper能做什么？
    

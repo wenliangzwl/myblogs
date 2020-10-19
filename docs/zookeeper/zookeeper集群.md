@@ -62,7 +62,7 @@ public synchronized void start() {
    
    首先，领导者选举在Zookeeper中有3种实现：
    
-   ![](zookeeper.assets/)
+   ![](zookeeper.assets/领导者选举策略.png)
    
    其中LeaderElection、AuthFastLeaderElection已经被标为过期，不建议使用，所以现在用的都是快速领导者选举FastLeaderElection，我们着重来介绍FastLeaderElection。
    
@@ -270,6 +270,7 @@ while ((self.getPeerState() == ServerState.LOOKING) && (!stop)){
    5.连接其他服务器
       
       因为在这一步之前，都只进行了服务器的初始化，并没有真正的去与其他服务器建立连接，所以在这里建立连接。
+   
    6.处理投票
     
         判断接收到的投票所对应的服务器的状态，也就是投此票的服务器的状态：
