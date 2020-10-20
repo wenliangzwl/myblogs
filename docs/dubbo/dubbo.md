@@ -228,3 +228,4 @@
         • providres：表示当前服务提供者
             
             • http://192.168.40.17:8081/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-provider-application&bean.name=ServiceBean:org.apache.dubbo.demo.DemoService&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello&pid=21548&release=2.7.0&side=provider&timeout=6001&timestamp=1585912730742
+

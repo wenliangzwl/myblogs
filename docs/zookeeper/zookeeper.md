@@ -404,6 +404,8 @@ stat /aa
 ### Zookeeper单机模式下的启动流程与数据接收模型
 
 #### 启动流程
+
+   ![](zookeeper.assets/20200809205237998.png)
    
    启动类：org.apache.zookeeper.server.quorum.QuorumPeerMain
    
@@ -454,7 +456,9 @@ stat /aa
    ![](zookeeper.assets/zk2.png)
 
 ### RequestProcessor详解
-
+   
+   ![](zookeeper.assets/单机Request.png)
+   
 #### PrepRequestProcessor
    
    通常是一个Requestprocessor Chain中的第一个Processor，用来预处理请求。
