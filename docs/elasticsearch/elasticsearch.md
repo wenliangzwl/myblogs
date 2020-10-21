@@ -1,10 +1,17 @@
 
 ### 引言
 
-#### 什么是elasticsearch？
+#### 什么是 elasticsearch、Logstash、Kibana？
    
-   ElasticSearch是一个分布式，高性能、高可用、可伸缩的搜索和分析系统
-
+   ElasticSearch是一个分布式，高性能、高可用、可伸缩的搜索和分析系统.
+   
+   Elasticsearch是个开源分布式搜索引擎，它的特点有：分布式，零配置，自动发现，索引自动分片，索引副本机制，restful风格接口，多数据源，自动搜索负载等。
+   
+   Logstash 是一个完全开源的工具，他可以对你的日志进行收集、过滤，并将其存储供以后使用（如，搜索）。
+   
+   Kibana 也是一个开源和免费的工具，它Kibana可以为 Logstash 和 ElasticSearch 提供的日志分析友好的 Web 界面，可以帮助您汇总、分析和搜索重要数据日志。
+   
+   
 #### 什么是Elastic Stack？
    
    Elastic Stack,前身缩写是ELK，就是ElasticSearch + LogStash + Kibana
@@ -16,6 +23,10 @@
    • 网上商场,搜索商品.
    
    • ES配合logstash,kibana,日志分析.
+   
+   ELK 原理图:
+   
+   ![](elasticsearch.assets/ELK.png)
 
 #### 为什么要使用elasticsearch？
    
@@ -94,6 +105,10 @@
   可以在创建索引时为每个索引定义分片和副本的数量。创建索引后，您还可以随时动态更改副本的数量。您可以使用收缩和拆分API更改现有索引的分片数量，建议在创建索引时就考虑好分片和副本的数量。
   
   默认情况下，ElasticSearch中的每个索引都分配一个主分片和一个副本，这意味着如果集群中至少有两个节点，则索引将有一个主分片和另一个副本分片（一个完整副本），每个索引总共有两个分片。
+
+##### 正排索引
+   
+   文档Id到文档内容，单词的关联关系
   
 ##### 倒排索引
    
@@ -106,6 +121,26 @@
    POS：单词在文档中的位置
    
    ![](elasticsearch.assets/倒排索引2.jpeg)
+   
+   ![](elasticsearch.assets/倒排索引.png)
+   
+###### 倒排索引详解
+   
+   倒排索引是搜索引擎的核心，主要包含两部分：
+     
+     单词词典(Term Dictionary)
+        是倒排索引的重要组成
+        记录所有文档的单词，一般都比较大
+        记录单词到倒排列表的关联信息
+        单词字典的实现一般是用B+ Tree
+     
+     倒排列表(Posting List)
+         记录了单词对应的文档集合，由倒排索引项(Posing)组成
+         主要包含了如下信息：
+         文档Id，用于获取原始信息
+         单词频率(TF，Term Frequency)，记录该单词在该文档中的出现次数，用于后续相关性算分
+         位置(Position)，记录单词在文档中的分词位置(多个)，用于做词语搜索(Phrase Query)
+         偏移(Offset)，记录单词在文档的开始和结束位置，用于做高亮显示
    
 ### 2.linux ES的安装(elasticsearch-7.3.2)
    
@@ -142,20 +177,23 @@
    2、修改network配置，支持通过ip访问
    
     vim config/elasticsearch.yml
-    cluster.name=luban
-    node.name=node-1
+    cluster.name: wlz
+    node.name: node-1
     network.host: 0.0.0.0
     http.port: 9200
     cluster.initial_master_nodes: ["node-1"]
-    max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
-    vm最大虚拟内存,max_map_count[65530]太低，至少增加到[262144]
+    
+   
+   max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
+   vm最大虚拟内存,max_map_count[65530]太低，至少增加到[262144]
    
    **vim /etc/sysctl.conf**
    
     vm.max_map_count=655360
     sysctl -p   使配置生效
-    descriptors [4096] for elasticsearch process likely too low, increase to at least [65536]
-    最大文件描述符[4096]对于elasticsearch进程可能太低，至少增加到[65536]
+    
+   descriptors [4096] for elasticsearch process likely too low, increase to at least [65536]
+   最大文件描述符[4096]对于elasticsearch进程可能太低，至少增加到[65536]
    
    **vim /etc/security/limits.conf**
 ```
@@ -217,9 +255,9 @@ i18n.locale: "zh-CN"
     
    4.cd  kibana-7.3.2-linux-x86_64/bin
    
-   5,  ./kibana --allow-root
+   5,  ./kibana --allow-root  (不能使用root 启动，所以和elasticsearch一样，使用其他用户启动)
    
-   6.访问kibana
+   6.访问kibana localhost:5601
     
 ### 写请求原理
    
@@ -473,6 +511,569 @@ POST /bank/_search
   "size": 0
 }
 ```
+ 
+##### cardinality : 去重统计
+```
+POST /bank/_search
+{
+  "aggs": {
+    "taibai": {
+      "cardinality": {
+        "field": "age"
+      }
+    }
+  },
+  "size": 0
+}
+```
 
+#####  extended_stats扩展统计聚合
+```
+POST /bank/_search
+{
+  "aggs": {
+    "taibai": {
+      "extended_stats": {
+        "field": "age"
+      }
+    }
+  },
+  "size": 0
+}
+```
+
+##### extended_stats扩展统计聚合
+```
+POST /bank/_search
+{
+  "aggs": {
+    "taibai": {
+      "extended_stats": {
+        "field": "age"
+      }
+    }
+  },
+  "size": 0
+}
+```
+
+##### value_count值计数统计
+
+  可以理解为统计个数
+
+##### terms词聚合
+ 
+  基于某个field，该 field 内的每一个【唯一词元】为一个桶，并计算每个桶内文档个数。默认返回顺序是按照文档个数多少排序。
+```
+POST /bank/_search
+{
+  "aggs": {
+    "taibai": {
+      "terms": {
+        "field": "age"
+      }
+    }
+  },
+  "size": 0
+}
+```
+
+##### top_hits最高匹配权值聚合
    
+   获取到每组前n条数据，相当于sql 中Top（group by 后取出前n条）。它跟踪聚合中相关性最高的文档
+```
+POST /bank/_search
+{
+  "aggs": {
+    "taibai": {
+      "terms": {
+        "field": "age"
+      },
+      "aggs": {
+        "count": {
+          "top_hits": {
+            "size": 3
+          }
+        }
+      }
+    }
+  },
+  "size": 0
+}
+```
+
+##### range范围
+```
+POST bank/_search
+{
+  "aggs": {
+    "group_by_age": {
+      "range": {
+        "field": "age",
+        "ranges": [
+          {
+            "from": 20,
+            "to": 30
+          },
+          {
+            "from": 30,
+            "to": 40
+          },
+          {
+            "from": 40,
+            "to": 50
+          }
+        ]
+      }
+    }
+  },
+  "size": 0
+}
+```
+
+#### 6.6查询响应
+  
+  如果使用浏览器工具去查询，返回的json没有格式化，可在后面加参数pretty，返回格式化后的数据
+```
+http://192.168.1.25:9200/wlz/_doc/_fiK3W0BdTjVHQ-c0HvY?pretty
+```
+
+#### 6.7指定响应字段
+```
+GET /taibai/_doc/9_iK3W0BdTjVHQ-czHuE?_source=id,name    //只返回id和name字段
+```
+
+#### 6.8去掉元数据
+```
+GET /taibai/_source/9_iK3W0BdTjVHQ-czHuE
+
+
+
+还可以去掉元数据并且返回指定字段
+GET /taibai/_source/9_iK3W0BdTjVHQ-czHuE?_source=id,name
+```
+
+#### 6.9判断文档是否存在
+```
+HEAD /taibai/_doc/9_iK3W0BdTjVHQ-czHuE
+```
+
+#### 7.批量操作
+
+ 语法实例
+```
+POST _bulk
+{ "index" : { "_index" : "test", "_id" : "1" } }
+{ "field1" : "value1" }
+{ "delete" : { "_index" : "test", "_id" : "2" } }
+{ "create" : { "_index" : "test", "_id" : "3" } }
+{ "field1" : "value3" }
+{ "update" : {"_id" : "1", "_index" : "test"} }
+{ "doc" : {"field2" : "value2"} }
+```
+
+#### 7.1批量查询
+  如果，某一条数据不存在，不影响整体响应，需要通过found的值进行判断是否查询到数据。
+```
+POST /taibai/_mget
+{
+"ids" : [ "8fiK3W0BdTjVHQ-cxntK", "9fiK3W0BdTjVHQ-cy3sI" ]
+}
+```
+
+#### 7.2批量插入
+```
+POST _bulk
+{ "create" : { "_index" : "taibai", "_id" : "3" } }
+{"id":2002,"name":"name1","age": 20,"sex": "男"}
+{ "create" : { "_index" : "taibai", "_id" : "4" } }
+{"id":2003,"name":"name1","age": 20,"sex": "男"}
+```
+
+#### 7.3批量删除
+```
+POST _bulk
+{ "delete" : { "_index" : "taibai", "_id" : "8PiK3W0BdTjVHQ-cxHs1" } }
+{ "delete" : { "_index" : "taibai", "_id" : "6vh43W0BdTjVHQ-cHXv8" } }
+```
+
+#### 7.4批量修改
+```
+POST _bulk
+{ "update" : {"_id" : "4", "_index" : "taibai"} }
+{ "doc" : {"name" : "太白"} }
+{ "update" : {"_id" : "3", "_index" : "taibai"} }
+{ "doc" : {"name" : "太白"} }
+```
+
+#### 8.分页查询
+```
+GET /taibai/_search?size=1&from=2     size: 结果数，默认10      from: 跳过开始的结果数，默认0
+```
+
+##### 分页一
+ 
+ 浅分页，它的原理很简单，就是查询前20条数据，然后截断前10条，只返回10-20的数据。这样其实白白浪费了前10条的查询
+```
+GET /bank/_search
+{
+  "sort": [
+    {
+      "age": {
+        "order": "desc"
+      }
+    }
+  ],
+  "size": 1000,
+  "from": 0
+}
+```
+
+##### 分页二
+
+   scroll 深分页，使用scroll，每次只能获取一页的内容，然后会返回一个scroll_id。根据返回的这个scroll_id可以不断地获取下一页的内容，所以scroll并不适用于有跳页的情景
+   
+   1. scroll=5m表示设置scroll_id保留5分钟可用。
+   
+   2. 使用scroll必须要将from设置为0。
+   
+   3. size决定后面每次调用_search搜索返回的数量
+```
+GET /bank/_search?scroll=5m
+{
+  "size": 20,
+  "from": 0,
+  "sort": [
+    {
+      "_id": {
+        "order": "desc"
+      }
+    }
+  ]
+}
+
+
+会返回一个：
+ "_scroll_id" : "DXF1ZXJ5QW5kRmV0Y2gBAAAAAAAAB9AWTVIyY1pKcmhUT0dBT1FXLU5ueHdDQQ=="
+ 
+ 以后调用：
+GET _search/scroll
+{
+  "scroll_id": "DXF1ZXJ5QW5kRmV0Y2gBAAAAAAAABMIWTVIyY1pKcmhUT0dBT1FXLU5ueHdDQQ==",
+  "scroll": "5m"
+}
+
+删除scroll_id
+DELETE _search/scroll/DXF1ZXJ5QW5kRmV0Y2gBAAAAAAAABMIWTVIyY1pKcmhUT0dBT1FXLU5ueHdDQQ==
+
+删除所有scroll_id
+DELETE _search/scroll/_all
+
+
+注意:根据官方文档的说法，scroll是非常消耗资源的，所以一个建议就是当不需要了scroll数据的时候，尽可能快的把scroll_id显式删除掉。scroll 的方式，官方的建议不用于实时的请求（一般用于数据导出），因为每一个 scroll_id 不仅会占用大量的资源，而且会生成历史快照，对于数据的变更不会反映到快照上。
+```
+
+##### 分页三
+   
+   search_after 深分页，是根据上一页的最后一条数据来确定下一页的位置，同时在分页请求的过程中，如果有索引数据的增删改查，这些变更也会实时的反映到游标上。但是需要注意，因为每一页的数据依赖于上一页最后一条数据，所以无法跳页请求。为了找到每一页最后一条数据，每个文档必须有一个全局唯一值，官方推荐使用 _uid 作为全局唯一值，其实使用业务层的 id 也可以。使用search_after必须要设置from=0。
+```
+GET /bank/_search
+{
+  "size": 20,
+  "from": 0,
+  "sort": [
+    {
+      "_id": {
+        "order": "desc"
+      }
+    }
+  ]
+}
+
+拿到返回最后一条数据的_id
+GET /bank/_search
+{
+  "size": 20,
+  "from": 0,
+  "sort": [
+    {
+      "_id": {
+        "order": "desc"
+      }
+    }
+  ],
+  "search_after": [
+    980
+  ]
+}
+```
+
+#### 9.映射
+   
+   前面我们创建的索引以及插入数据，都是由Elasticsearch进行自动判断类型，有些时候我们是需要进行明确字段类型的，否则，自动判断的类型和实际需求是不相符的。
+   
+   自动判断的规则如下：
+   
+   ![](elasticsearch.assets/映射.png)
+   
+  创建明确类型的索引：
+```
+PUT /goods
+{
+  "settings": {
+    "number_of_replicas": 0,
+    "number_of_shards": 1
+  },
+  "mappings": {
+    "properties": {
+      "id": {
+        "type": "long"
+      },
+      "sn": {
+        "type": "keyword"
+      },
+      "name": {
+        "type": "text",
+        "analyzer": "ik_max_word"
+      },
+      "price": {
+        "type": "double"
+      },
+      "num": {
+        "type": "integer"
+      },
+      "alert_num": {
+        "type": "integer"
+      },
+      "image": {
+        "type": "keyword"
+      },
+      "images": {
+        "type": "keyword"
+      },
+      "weight": {
+        "type": "double"
+      },
+      "create_time": {
+        "type": "date",
+        "format": "yyyy-MM-dd HH:mm:ss"
+      },
+      "update_time": {
+        "type": "date",
+        "format": "yyyy-MM-dd HH:mm:ss"
+      },
+      "spu_id": {
+        "type": "keyword"
+      },
+      "category_id": {
+        "type": "integer"
+      },
+      "category_name": {
+        "type": "text",
+        "analyzer": "ik_smart"
+      },
+      "brand_name": {
+        "type": "keyword"
+      },
+      "spec": {
+        "type": "text",
+        "analyzer": "ik_max_word"
+      },
+      "sale_num": {
+        "type": "integer"
+      },
+      "comment_num": {
+        "type": "integer"
+      },
+      "status": {
+        "type": "integer"
+      }
+    }
+  }
+}
+```
+
+  添加一个字段到现有的映射
+```
+PUT /luban/_mapping
+{
+  "properties": {
+    "isold": {      //字段名
+      "type": "keyword",  //类型
+      "index": false
+    }
+  }
+}
+```
+  
+  更新字段的映射
+```
+除了支持的映射参数外，您不能更改现有字段的映射或字段类型。更改现有字段可能会使已经建立索引的数据无效。
+
+如果您需要更改字段映射，创建具有正确映射一个新的索引和重新索引的数据转换成指数。
+
+重命名字段会使在旧字段名称下已建立索引的数据无效。而是添加一个alias字段以创建备用字段名称。
+```
+
+  查看索引的映射
+```
+GET /luban/_mapping
+```
+  
+  查看指定字段的映射信息
+```
+GET /luban/_mapping/field/name
+```
+
+#### 10.结构化查询
+
+##### 10.1term查询
+  term 主要用于精确匹配哪些值，比如数字，日期，布尔值或 not_analyzed 的字符串(未经分析的文本数据类型)：
+```
+POST /taibai/_search
+{
+  "query" : {
+    "term" : {
+      "age" : 20
+    }
+  }
+}
+```
+
+##### 10.2terms查询
+  
+  terms 跟 term 有点类似，但 terms 允许指定多个匹配条件。 如果某个字段指定了多个值，那么文档需要一起去
+  做匹配：
+  
+```
+POST /taibai/_search
+{
+  "query" : {
+    "terms" : {
+      "age" : [20,27]
+    }
+  }
+}
+```
+
+##### 10.3range查询
+
+  range 过滤允许我们按照指定范围查找一批数据：
+  
+  gt :: 大于
+  
+  gte :: 大于等于
+  
+  lt :: 小于
+  
+  lte :: 小于等于
+```
+POST /taibai/_search
+{
+  "query": {
+    "range": {
+      "age": {
+        "gte": 20,
+        "lte": 22
+      }
+    }
+  }
+}
+```
+
+##### 10.4exists查询
+  
+   exists 查询可以用于查找文档中是否包含指定字段或没有某个字段，类似于SQL语句中的 IS_NULL 条件
+   
+   包含这个字段就返回返回这条数据
+```
+POST /taibai/_search
+{
+  "query": {
+    "exists": {
+      "field": "name"
+    }
+  }
+}
+```
+
+##### 10.5 match查询
+   
+   match 查询是一个标准查询，不管你需要全文本查询还是精确查询基本上都要用到它。
+   如果你使用 match 查询一个全文本字段，它会在真正查询之前用分析器先分析 match 一下查询字符；如果用 match 下指定了一个确切值，在遇到数字，日期，布尔值或者 not_analyzed 的字符串时，它将为你搜索你
+   
+   给定的值：
+```
+POST /taibai/_search
+{
+  "query" : {
+    "match" : {     
+      "name" : "三个小矮人"
+    }
+  }
+}
+match查询会先对搜索词进行分词,分词完毕后再逐个对分词结果进行匹配，因此相比于term的精确搜索，match是分词匹配搜索
+```
+
+##### 10.6  bool查询
+   
+   bool 查询可以用来合并多个条件查询结果的布尔逻辑，它包含一下操作符：
+   
+   must :: 多个查询条件的完全匹配,相当于 and 。
+   
+   must_not :: 多个查询条件的相反匹配，相当于 not 。
+   
+   should :: 至少有一个查询条件匹配, 相当于 or 。
+   
+   这些参数可以分别继承一个查询条件或者一个查询条件的数组：
+```
+POST /taibai/_search
+{
+	"query": {
+		"bool": {
+			"must": {
+				"term": {
+					"sex": "男"
+				}
+			},
+			"must_not": {
+				"term": {
+					"age": "29"
+				}
+			},
+			"should": [
+			  {
+					"term": {
+						"sex": "男"
+					}
+				},
+				{
+					"term": {
+						"id": 1003
+					}
+				}
+			]
+		}
+	}
+}
+```
+
+##### 10.7过滤查询
+  查询年龄为20岁的用户。
+```
+POST /taibai/_search
+{
+	"query": {
+		"bool": {
+			"filter": {
+				"term": {
+					"age": 20
+				}
+			}
+		}
+	}
+}
+```
+
+
    

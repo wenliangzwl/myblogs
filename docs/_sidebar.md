@@ -8,6 +8,7 @@
 - [Nginx](nginx/_sidebar.md)
 - [zookeeper](zookeeper/_sidebar.md)
 - [Dubbo](dubbo/_sidebar.md)
+- [Elasticsearch](elasticsearch/_sidebar.md)
 - netty
   - [网络基础和JAVA-IO](netty/网络基础和JAVA-IO.md)
 - [设计模式](desgin-pattern/_sidebar.md)
