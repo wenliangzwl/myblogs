@@ -255,8 +255,10 @@ i18n.locale: "zh-CN"
     
    4.cd  kibana-7.3.2-linux-x86_64/bin
    
-   5,  ./kibana --allow-root  (不能使用root 启动，所以和elasticsearch一样，使用其他用户启动)
-   
+   5. ./kibana --allow-root  (不能使用root 启动，所以和elasticsearch一样，使用其他用户启动) 
+       
+   nohup ./kibana & (以后台方式运行)
+       
    6.访问kibana localhost:5601
     
 ### 写请求原理
