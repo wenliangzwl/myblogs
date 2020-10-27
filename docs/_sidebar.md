@@ -5,8 +5,6 @@
 - [MyBatis](mybatis/_sidebar.md)
 - [Spring 框架](spring/_sidebar.md)
 - [Tomcat](tomcat/_sidebar.md)
-- 数据库相关
-  - [Redis](redis/_sidebar.md)
 - 分布式
   - [Nginx](nginx/_sidebar.md)
   - [Elasticsearch](elasticsearch/_sidebar.md)
@@ -19,4 +17,6 @@
   - [网络基础和JAVA-IO](netty/网络基础和JAVA-IO.md)
 - [设计模式](desgin-pattern/_sidebar.md)
 - [面试](interview/interview.md)
-- 数据库
+- 数据库相关
+  - [Redis](redis/_sidebar.md)
+  - [MySQL](mysql/_sidebar.md)
