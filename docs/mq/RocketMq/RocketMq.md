@@ -1,5 +1,7 @@
 
 ### RocketMq核心概念
+   
+   ![](RocketMq.assets/rocketMq流程图.png)
 
 #### 1 消息模型（Message Model）
    

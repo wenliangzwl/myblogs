@@ -12,7 +12,10 @@
   - [zookeeper](zookeeper/_sidebar.md)
 - 消息中间件
   - [消息中间件的对比](mq/mqCompared.md)
-  - [RocketMq](mq/rocketMq/_sidebar.md)
+  - [RocketMq](mq/RocketMq/_sidebar.md)
+  - [RabbitMq](mq/RabbitMq/_sidebar.md)
+  - [kafka](mq/kafka/_sidebar.md)
+  - [ActiveMq](mq/ActiveMq/_sidebar.md)
 - netty
   - [网络基础和JAVA-IO](netty/网络基础和JAVA-IO.md)
 - [设计模式](desgin-pattern/_sidebar.md)
