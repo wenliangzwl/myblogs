@@ -151,7 +151,7 @@
    
    生产者发送消息时指定队列（根据业务IDHash等等。。。） ，同时消费者使用有序消费监听器（MessageListenerOrderly） 两者同时实现 即可保证局部有序
    
-   2：  rocketmq的消息通讯机制是由推（push）拉（pull）两种方式实现 不过rocketmq对推送机制做了优化现在已不需要拉取了 
+   2：rocketmq的消息通讯机制是由推（push）拉（pull）两种方式实现 不过rocketmq对推送机制做了优化现在已不需要拉取了 
     
    rocketmq的推送机制原理： 由客户端定时与mq发起pull长连接  若无消息返回 则间隔一定时间断开连接重连
    
