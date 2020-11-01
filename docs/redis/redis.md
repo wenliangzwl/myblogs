@@ -560,3 +560,250 @@
    rdb和aof同时存在时，因为RDB文件只用作后备用途，只要15分钟备份一次就够了，只保留save 900 1这条规则。
    
    重写：只要硬盘许可，应该尽量减少AOF rewrite的频率，AOF重写的基础大小默认值64M太小了，可以设到5G以上。默认超过原大小100%大小时重写可以改到适当的数值。
+   
+### redis.conf 配置详解 
+   
+   bind 127.0.0.1 (只能本机连接)
+   
+   bind 192.168.27.133 (指定本机ip<只能是内网ip>，外网可以连接)
+   
+   bind 0.0.0.0 (多ip，外网可以连接)
+   
+   删除  bind  (注释掉，外网不能连接，如果需要外网访问 配置 protected-mode no)
+    
+   protected-mode (保护模式， 使用了bind，或设置了密码，protected-mode yes 将不生效等同于no)
+   
+   supervised no (可以通过upstart 和systemd 管理redis 守护进程，这个参数是和具体的操作系统相关的)
+   
+   pidfile /var/run/redis_6379.pid (当redis以守护进程方式运行时，redis默认会把pid写入/var/run/redis.pid文件，可以通过pidfile设置)
+   
+   loglevel notice (设置日志级别 debug、verbose、notice、warning、默认为verbose)
+   
+   logfile "" ( 日志文件位置，当指定为空字符串时，为标准输出，如果redis已守护进程模式运行，那么日志将会输出到 /dev/null)
+
+```
+# 配置大小单位,开头定义了一些基本的度量单位，只支持bytes，不支持bit  对大小写不敏感
+# 1k => 1000 bytes
+# 1kb => 1024 bytes
+# 1m => 1000000 bytes
+# 1mb => 1024*1024 bytes
+# 1g => 1000000000 bytes
+# 1gb => 1024*1024*1024 bytes
+
+# 引入其他文件
+# include /path/to/local.conf
+# include /path/to/other.conf
+# bind 192.168.1.100 10.0.0.1
+# bind 127.0.0.1 ::1
+# 绑定Ip   指定可以连接本实例Redis的ip  如果注释（删掉）则任意IP都可以连接
+bind 127.0.0.1
+
+#禁止外网访问redis，如果启用了，即使注释掉了bind 127.0.0.1，再访问redisd时候还是无法连接的
+#它启用的条件有两个，第一是没有使用bind，第二是没有设置访问密码。
+protected-mode yes
+
+#指定Redis的端口
+port 6379
+
+# 此参数确定了TCP连接中已完成队列(完成三次握手之后)的长度， 
+# 当然此值必须不大于Linux系统定义的/proc/sys/net/core/somaxconn值，默认是511，
+# 而Linux的默认参数值是128。当系统并发量大并且客户端速度缓慢的时候，可以将这二个参数一起参考设定。
+# 在高并发环境下你需要一个高backlog值来避免慢客户端连接问题
+tcp-backlog 511
+
+# 当客户端闲置多长时间后关闭连接，如果指定为0，表示关闭该功能
+timeout 0
+
+# 设置多长时间检测死连接 单位为秒，如果设置为0，则不会进行Keepalive检测
+tcp-keepalive 300
+
+# 是否以守护进程启动
+daemonize no
+
+#可以通过upstart和systemd管理Redis守护进程，这个参数是和具体的操作系统相关的。
+supervised no
+
+#当Redis以守护进程方式运行时，Redis默认会把pid写入/var/run/redis.pid文件，可以通过pidfile指定
+pidfile /var/run/redis_6379.pid
+
+#设置日志的级别  debug、verbose、notice、warning，默认为verbose
+loglevel notice
+
+#日志文件的位置，当指定为空字符串时，为标准输出，如果redis已守护进程模式运行，那么日志将会输出到  /dev/null 。
+logfile ""
+
+# 设置数据库的数目。默认的数据库是DB 0 ，可以在每个连接上使用select  <dbid> 命令选择一个不同的数据库，dbid是一个介于0到databases - 1 之间的数值。
+databases 16
+
+always-show-logo yes
+
+#   save ""
+# 指定在多长时间内，有多少次更新操作，就将数据同步到数据文件，可以多个条件配合
+# 这里表示900秒（15分钟）内有1个更改，300秒（5分钟）内有10个更改以及60秒内有10000个更改
+# 如果想禁用RDB持久化的策略，只要不设置任何save指令，或者给save传入一个空字符串参数也可以
+save 900 1
+save 300 10
+save 60  1
+
+# 默认情况下，如果 redis 最后一次的后台保存失败，redis 将停止接受写操作，这样以一种强硬的方式让用户知道数据不能正确的持久化到磁盘， 
+# 否则就会没人注意到灾难的发生。 如果后台保存进程重新启动工作了，redis 也将自动的允许写操作。
+# 如果配置成no，表示你不在乎数据不一致或者有其他的手段发现和控制
+stop-writes-on-bgsave-error yes
+
+# 对于存储到磁盘中的快照(rdb)，可以设置是否进行压缩存储。如果是的话，redis会采用
+# LZF算法进行压缩。如果你不想消耗CPU来进行压缩的话，可以设置为关闭此功能
+rdbcompression yes
+
+# 在存储快照后，还可以让redis使用CRC64算法来进行数据校验，但是这样做会增加大约
+# 10%的性能消耗，如果希望获取到最大的性能提升，可以关闭此功能
+rdbchecksum yes
+
+#rdb文件的名字。
+dbfilename dump.rdb
+
+# dbfilename文件存放目录。必须是一个目录，aof文件也会保存到该目录下。
+dir ./
+
+#设置当本机为slave服务时，设置master服务的IP地址及端口，在Redis启动时，它会自动从master进行数据同步
+# replicaof <masterip> <masterport>
+
+#当master服务设置了密码保护时，slave服务连接master的密码
+# masterauth <master-password>
+
+#当一个slave与master失去联系时，或者复制正在进行的时候，slave应对请求的行为: 
+#如果为 yes（默认值） ，slave 仍然会应答客户端请求，但返回的数据可能是过时，或者数据可能是空的在第一次同步的时候
+#如果为 no ，在你执行除了 info 和 salveof 之外的其他命令时，slave 都将返回一个 "SYNC with master in progress" 的错误。
+replica-serve-stale-data yes
+
+# 主从数据复制是否使用无硬盘复制功能。
+repl-diskless-sync no
+
+
+# 指定slave定期ping master的周期，默认10秒钟。
+# repl-ping-replica-period 10
+
+#设置主库批量数据传输时间或者ping回复时间间隔，默认值是60秒 。
+# repl-timeout 60
+
+#指定向slave同步数据时，是否禁用socket的NO_DELAY选项。
+#若配置为“yes”，则禁用NO_DELAY，则TCP协议栈会合并小包统一发送，这样可以减少主从节点间的包数量并节省带宽，但会增加数据同步到 slave的时间。
+#若配置为“no”，表明启用NO_DELAY，则TCP协议栈不会延迟小包的发送时机，这样数据同步的延时会减少，但需要更大的带宽。 
+#通常情况下，应该配置为no以降低同步延时，但在主从节点间网络负载已经很高的情况下，可以配置为yes。
+repl-disable-tcp-nodelay no
+
+# 设置主从复制backlog容量大小。这个 backlog 是一个用来在 slaves 被断开连接时存放 slave 数据的 buffer，
+# 所以当一个 slave 想要重新连接，通常不希望全部重新同步，只是部分同步就够了，仅仅传递 slave 在断开连接时丢失的这部分数据。
+# 这个值越大，salve 可以断开连接的时间就越长。
+# repl-backlog-size 1mb
+
+#配置当master和slave失去联系多少秒之后，清空backlog释放空间。当配置成0时，表示永远不清空。
+# repl-backlog-ttl 3600
+
+#当 master 不能正常工作的时候，Redis Sentinel 会从 slaves 中选出一个新的 master，这个值越小，就越会被优先选中，但是如果是 0 ， 那是意味着这个 slave 不可能被选中。 默认优先级为 100。
+replica-priority 100
+
+# 设置Redis连接密码，如果配置了连接密码，客户端在连接Redis时需要通过AUTH <password>命令提供密码，默认关闭
+# requirepass foobared
+
+#设置同一时间最大客户端连接数，Redis可以同时打开的客户端连接数为Redis进程可以打开的最大文件描述符数，
+#如果设置 maxclients 0，表示不作限制。当客户端连接数到达限制时，Redis会关闭新的连接并向客户端返回max number of clients reached错误信息
+# maxclients 10000
+
+# 指定Redis最大内存限制，Redis在启动时会把数据加载到内存中，达到最大内存后，Redis会先尝试清除已到期或即将到期的Key，
+# 当此方法处理后，仍然到达最大内存设置，将无法再进行写入操作，但仍然可以进行读取操作。
+# Redis新的vm机制，会把Key存放内存，Value会存放在swap区
+# maxmemory <bytes>
+
+
+#当内存使用达到最大值时，redis使用的清除策略。有以下几种可以选择（明明有6种，官方配置文件里却说有5种可以选择？）：
+# 1）volatile-lru   利用LRU算法移除设置过过期时间的key (LRU:最近使用 Least Recently Used ) 
+# 2）allkeys-lru   利用LRU算法移除任何key 
+# 3）volatile-random 移除设置过过期时间的随机key 
+# 4）allkeys-random  移除随机key 
+# 5）volatile-ttl   移除即将过期的key(minor TTL) 
+# 6）noeviction  不移除任何key，只是返回一个写错误 。默认选项
+
+
+# LRU 和 minimal TTL 算法都不是精准的算法，但是相对精确的算法(为了节省内存)，随意你可以选择样本大小进行检测。redis默认选择5个样本进行检测，你可以通过maxmemory-samples进行设置样本数。
+# maxmemory-samples 5
+
+lazyfree-lazy-eviction no
+lazyfree-lazy-expire no
+lazyfree-lazy-server-del no
+replica-lazy-flush no
+
+
+# 是否启用aof持久化方式 。否在每次更新操作后进行日志记录，Redis在默认情况下是异步的把数据写入磁盘，如果不开启，可能会在断电时导致一段时间内的数据丢失。
+# 因为 redis本身同步数据文件是按上面save条件来同步的，所以有的数据会在一段时间内只存在于内存中。默认为no
+appendonly no
+
+# The name of the append only file (default: "appendonly.aof")
+# 指定更新日志（aof）文件名，默认为appendonly.aof
+appendfilename "appendonly.aof"
+
+# If unsure, use "everysec".
+#指定更新日志条件，共有3个可选值： 
+#  no：表示等操作系统进行数据缓存同步到磁盘（快，持久化没保证） 
+#  always：同步持久化，每次发生数据变更时，立即记录到磁盘（慢，安全） 
+#  everysec：表示每秒同步一次（默认值,很快，但可能会丢失一秒以内的数据）
+# appendfsync always
+appendfsync everysec
+# appendfsync no
+
+
+# 指定是否在后台aof文件rewrite期间调用fsync，默认为no，表示要调用fsync（无论后台是否有子进程在刷盘）。
+# Redis在后台写RDB文件或重写AOF文件期间会存在大量磁盘IO，此时，在某些linux系统中，调用fsync可能会阻塞。
+#如果应用系统无法忍受延迟，而可以容忍少量的数据丢失，则设置为yes。如果应用系统无法忍受数据丢失，则设置为no。
+no-appendfsync-on-rewrite no
+
+
+#当AOF文件增长到一定大小的时候Redis能够调用 BGREWRITEAOF 对日志文件进行重写 。当AOF文件大小的增长率大于该配置项时自动开启重写。
+auto-aof-rewrite-percentage 100
+#当AOF文件增长到一定大小的时候Redis能够调用 BGREWRITEAOF 对日志文件进行重写 。当AOF文件大小大于该配置项时自动开启重写
+auto-aof-rewrite-min-size 64mb
+
+#redis在启动时可以加载被截断的AOF文件，而不需要先执行redis-check-aof 工具。
+aof-load-truncated yes
+
+#是否开启混合持久化
+aof-use-rdb-preamble yes
+
+#一个Lua脚本最长的执行时间，单位为毫秒，如果为0或负数表示无限执行时间
+lua-time-limit 5000
+
+
+# 是否开启cluster集群模式 如果配置yes则开启集群功能，此redis实例作为集群的一个节点，否则，它是一个普通的单一的redis实例。
+# cluster-enabled yes
+
+#虽然此配置的名字叫"集群配置文件"，但是此配置文件不能人工编辑，它是集群节点自动维护的文件，
+#主要用于记录集群中有哪些节点、他们的状态以及一些持久化参数等，方便在重启时恢复这些状态。通常是在收到请求之后这个文件就会被更新。
+# cluster-config-file nodes-6379.conf
+
+
+#这是集群中的节点能够失联的最大时间，超过这个时间，该节点就会被认为故障。如果主节点超过这个时间还是不可达，则用它的从节点将启动故障迁移，升级成主节点。
+# cluster-node-timeout 15000
+
+#如果设置成０，则无论从节点与主节点失联多久，从节点都会尝试升级成主节点。
+#如果设置成正数，则cluster-node-timeout乘以cluster-slave-validity-factor得到的时间，是从节点与主节点失联后，
+#此从节点数据有效的最长时间，超过这个时间，从节点不会启动故障迁移。
+#假设cluster-node-timeout=5，cluster-slave-validity-factor=10，则如果从节点跟主节点失联超过50秒，此从节点不能成为主节点。
+#注意，如果此参数配置为非0，将可能出现由于某主节点失联却没有从节点能顶上的情况，从而导致集群不能正常工作，
+#在这种情况下，只有等到原来的主节点重新回归到集群，集群才恢复运作。
+# cluster-replica-validity-factor 10
+
+
+#master的slave数量大于该值，slave才能迁移到其他孤立master上，如这个参数若被设为2，那么只有当一个主节点拥有2 个可工作的从节点时，它的一个从节点会尝试迁移。
+#不建议设置为0
+#想禁用可以设置一个非常大的值
+#如果小于0则启动失败
+# cluster-migration-barrier 1
+
+# 表示当负责一个插槽的主库下线且没有相应的从库进行故障恢复时，是否整个集群不可用？
+# cluster-require-full-coverage yes
+
+```
+   
+   
+   
+   
+   
