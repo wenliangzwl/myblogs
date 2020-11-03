@@ -352,7 +352,7 @@ public static void main(String[] args)  {
    第一步：在/usr/local下创建文件夹redis-cluster，然后在其下面分别创建6个文件夾如下
     
      （1）mkdir -p /usr/local/redis-cluster
-     （2）mkdir 8001、 mkdir 8002、 mkdir 8003、 mkdir 8004、 mkdir 8005、 mkdir 8006
+     （2）mkdir 7000、 mkdir 7001、 mkdir 7002、 mkdir 7003、 mkdir 7004、 mkdir 7005
    
    第二步：把之前的redis.conf配置文件copy到8001下，修改如下内容：
      
@@ -370,7 +370,7 @@ public static void main(String[] args)  {
    第三步：把修改后的配置文件，批量替换一下，然后生成到新的文件到其他的各个目录
      
      如：
-     sed 's/8001/8002/g' /usr/local/redis-cluster/8001redis.conf  > /usr/local/redis-cluster/8002/redis.conf
+        sed 's/7000/7001/g' /usr/local/redis-cluster/7000/redis.conf  > /usr/local/redis-cluster/7001/redis.conf
      语法： sed 's/目标值/替换成什么值/g'  目标文件  >   替换后生成到哪里
    
    第四步：由于 redis集群需要使用 ruby命令，所以我们需要安装 ruby（redis5.0之后省略）
