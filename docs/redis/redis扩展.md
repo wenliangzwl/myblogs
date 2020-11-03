@@ -601,3 +601,104 @@ public String getKey(String key){
    4：如果缓存数据库是分布式部署，将热点数据均匀分布在不同的缓存数据库中。
    
    大部分数据失效（机器宕机） 解决方案（搭建高可用集群、错开缓存失效时间）
+   
+
+
+### redis 5.0版本  之后的伪集群搭建
+   
+   redis cluster集群需要至少要三个master节点，我们这里搭建三个master节点，并且给每个
+   master再搭建一个slave节点，总共6个redis节点，由于节点数较多，这里采用在一台机器
+   上创建6个redis实例，并将这6个redis实例配置成集群模式，所以这里搭建的是伪集群模
+   式，当然真正的分布式集群的配置方法几乎一样，搭建伪集群的步骤如下：
+   
+   第一步：在/usr/local下创建文件夹redis-cluster，然后在其下面分别创建6个文件夾如下
+         
+    （1）mkdir -p /usr/local/redis-cluster
+    （2）mkdir 7000、 mkdir 7001、 mkdir 7002、 mkdir 7003、 mkdir 7004、 mkdir 7005
+     
+   第二步：把之前的redis.conf配置文件copy到8001下，修改如下内容：
+      
+        (1)cp /usr/local/redis/redis/conf /usr/local/redis-cluster/redis7000/redis.conf
+        (2) 改配置文件
+            
+            --基本配置--
+            1）port 8001（分别对每个机器的端口号进行设置）
+            2）daemonize yes
+            3）bind 127.0.0.1（如果只在本机玩则可以指定为127.0.0.1  如果需要外网访问则需要指定本机真实ip）
+                   定可能会出现循环查找集群节点机器的情况）
+            4）dir /usr/local/redis-cluster/8001/（指定数据文件存放位置，必须要指定不同的目
+            5）appendonly yes
+            6）protected-mode yes 
+            7)profiile /var/run/redis_7000.pid (在一台机器模拟的时候需要修改这个，多台机器不需要)
+            8）logfile "/myredis/redis7000" (日志目录)
+            9）masterauth 123456 (设置集群密码)
+            10）requirepass 123456 (设置redis 密码)
+            --集群配置--
+            11）cluster-enabled yes（启动集群模式）
+            12）cluster-config-file nodes-8001.conf（这里800x最好和port对应上，集群信息的配置文件）
+            13）cluster-node-timeout 5000
+            14）cluster-require-full-coverage yes (设置为yes，当有一个小集群挂掉，整个集群不可用，设置为no，当有一个小集群挂掉，其他整个集群可用)
+            
+     
+   第三步：把修改后的配置文件，批量替换一下，然后生成到新的文件到其他的各个目录
+       
+       如：
+          sed 's/7000/7001/g' /usr/local/redis-cluster/7000/redis.conf  > /usr/local/redis-cluster/7001/redis.conf
+       语法： sed 's/目标值/替换成什么值/g'  目标文件  >   替换后生成到哪里
+   
+   第四步：分别启动6个redis实例，然后检查是否启动成功
+       
+      （1） /usr/local/redis/bin/redis-server /usr/local/redis-cluster/7000/redis.conf
+           /usr/local/redis/bin/redis-server /usr/local/redis-cluster/7000/redis.conf
+      （2） ps -ef | grep redis 查看是否启动成功
+      
+      （3）连接任意一个客户端即可：./redis-cli -c -h -p (-c表示集群模式，指定ip地址和端口
+               号）如：/usr/local/redis/bin/redis-cli -c -h 127.0.0.1 -p 700*
+      （4）添加一个数据
+            set k1 v1 （显示添加失败未分配槽位（slot），因为在集群模式下，未分配槽位u，不能添加数据）
+    
+   第五步：分配主从，分配槽位
+       
+       （1）创建集群 分配槽位
+             (--cluster -replicas 1  分配主从 1：代表 3：3 前面三个为master 后面三个为slave ， 2：代表 2：4 前面2个为master，后面四个为slave ，但是redis 搭建集群必须要有3个 master) -a 123456 输入密码
+             /usr/local/bin/redis-cli --cluster create 192.168.27.133 7000 192.168.27.133 7001 192.168.27.133 7002 192.168.27.133 7003 192.168.27.133 7004 192.168.27.133 7005 --cluster -replicas 1 -a 123456
+       
+       （2）查看集群节点信息
+            /usr/local/bin/redis-cli -h 192.168.27.129 -p 7000 -a 123456 cluster nodes
+        
+       （3）连接客户端
+            /usr/local/redis/bin/redis-cli -h 127.0.0.1 -p 7000 -a 123456
+            set k1 v1 （还是报错生成的哈希值不在7000 这个节点，所以报错）
+       
+       （4）以集群方式连接客户端 
+            /usr/local/redis/bin/redis-cli -h 127.0.0.1 -p 7000 -a 123456 -c
+            set k1 v1 （成功，自动会重定向到其他对应的节点）
+            cluster keyslot k2 （查看这个key 的槽位是多少）
+   
+   扩容：
+        
+        （1）启动 7006 7007 
+            /usr/local/redis/bin/redis-server /usr/local/redis-cluster/7006/redis.conf
+        （2）加入集群
+            /usr/local/bin/redis-cli --cluster add-node 192.168.27.133:7006 192.168.27.133 7003 -a 123456 
+            
+            /usr/local/bin/redis-cli --cluster add-node 192.168.27.133:7007 192.168.27.133 7001 --cluster-slave --cluster-master-id 341233434123dfdsff(master_id)  -a 123456 
+            
+         (3) 给 7006 分配槽位
+            /usr/local/bin/redis-cli --cluster reshard 192.168.27.133:7000 -a 123456
+            提示：分配多少槽位  写 300 （这个随便写）
+            再次提示： all （新的槽位在哪里分配，all：其他节点平均分配，输入 节点id 指定分配以done 结束）
+   
+   缩容：
+   
+      （1）迁出槽位
+         /usr/local/bin/redis-cli --cluster reshard 192.168.27.133:7000 --cluster-from 3412334412dfasdafdsfasd --cluster-to 1234123412dfaafadsf --cluster-slots 300 
+      (2) 先删slave 再删除master 
+          /usr/local/bin/redis-cli --cluster del-node 192.168.27.133:7000 dfadfasdffdasdfsadf34123413 -a 123456
+          /usr/local/bin/redis-cli --cluster del-node 192.168.27.133:7000 5434134122343412asdfasd2342 -a 123456
+            
+   
+   扩展：
+   
+         -a 123456 输入密码
+         /usr/local/bin/redis-cli -h 192.168.27.133 -p 7000 -a 123456 --cluster help (查看搭建redis 集群可以使用哪些命令，相当于一个文档)
