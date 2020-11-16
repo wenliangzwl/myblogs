@@ -630,7 +630,7 @@ public String getKey(String key){
             5）appendonly yes
             6）protected-mode yes 
             7)profiile /var/run/redis_7000.pid (在一台机器模拟的时候需要修改这个，多台机器不需要)
-            8）logfile "/myredis/redis7000" (日志目录)
+            8）logfile "/myredis/redis7000/redis.log" (日志目录,要先创建目录)
             9）masterauth 123456 (设置集群密码)
             10）requirepass 123456 (设置redis 密码)
             --集群配置--
@@ -638,7 +638,7 @@ public String getKey(String key){
             12）cluster-config-file nodes-8001.conf（这里800x最好和port对应上，集群信息的配置文件）
             13）cluster-node-timeout 5000
             14）cluster-require-full-coverage yes (设置为yes，当有一个小集群挂掉，整个集群不可用，设置为no，当有一个小集群挂掉，其他整个集群可用)
-            
+            15）cluster-announce-ip 192.168.1.97 (docker 搭建的话需要配置这个》》配置外网访问)
      
    第三步：把修改后的配置文件，批量替换一下，然后生成到新的文件到其他的各个目录
        
