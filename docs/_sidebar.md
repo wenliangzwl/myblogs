@@ -1,6 +1,6 @@
 - [并发编程](concurrent/_sidebar.md)
 - JVM
-   - [JVM线上监控工具](jvm/jvm线上监控工具.md)
+   - [JVM](jvm/_sidebar.md)
 - [JAVA 集合](collection/_sidebar.md)
 - [MyBatis](mybatis/_sidebar.md)
 - [Spring 框架](spring/_sidebar.md)
