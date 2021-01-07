@@ -23,7 +23,8 @@
   - [Redis](redis/_sidebar.md)
   - [MySQL](mysql/_sidebar.md)
   - [MongoDb](MongoDB/_sidebar.md)
-- springCloud
-- [微服务入门](springCloud/_sidebar.md)
+- 微服务专题
+  - [spring-cloud](springCloud/_sidebar.md)
+  - [spring-cloud-alibaba](spring-cloud-alibaba/_sidebar.md)
 - Devops
  - [Docker](Docker/_sidebar.md)
