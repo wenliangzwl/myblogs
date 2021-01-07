@@ -4,4 +4,6 @@
   - [Explain关键字解析](mysql/Explain关键字解析.md)
   - [查询优化器工作原理](mysql/查询优化器工作原理.md)
   - [Mysql事务以及锁原理](mysql/Mysql事务以及锁原理.md)
+  - [Mysql索引](mysql/索引.md)
+  - [Mysql锁](mysql/MySQL锁.md)
 - [首页](README.md)
