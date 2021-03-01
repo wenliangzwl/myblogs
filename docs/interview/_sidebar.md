@@ -6,4 +6,7 @@
    - [SpringCloud](interview/SpringCloud.md)
    - [SpringMVC](interview/SpringMVC.md)
    - [java基础](interview/java基础.md)
+   - [算法题](interview/算法.md)
+   - [Mysql](interview/Mysql.md)
+   
 - [首页](README.md)
