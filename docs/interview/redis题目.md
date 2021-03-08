@@ -1,11 +1,34 @@
 ### redis 题目
 
-#### 你们系统中分布式锁是如何实现的？(当时回答采用 redis 实现，set(key,value,nx,ex,expire))
-
+#### 你们系统中分布式锁是如何实现的？
+   
+   采用 redis 实现，setnx +  expire  
+   
 #### 上面使用 redis 实现分布式锁会存在什么问题？
 
+   实际上上面的步骤是有问题的，setnx和expire是分开的两步操作，不具有原子性，如果执行完第一条指令应用异常或者重启了，锁将无法过期。
+   
+   改善:  
+       
+       使用Lua脚本（包含setnx和expire两条指令） 
+       
+       使用 set key value [EX seconds][PX milliseconds][NX|XX] 命令 (正确做法)
+       
+   再改善: 
+       
+       使用 set key value [EX seconds][PX milliseconds][NX|XX] 命令 看上去很OK，实际上在Redis集群的时候也会出现问题，
+       比如说A客户端在Redis的master节点上拿到了锁，但是这个加锁的key还没有同步到slave节点，master故障，发生故障转移，
+       一个slave节点升级为master节点，B客户端也可以获取同个key的锁，但客户端A也已经拿到锁了，这就导致多个客户端都拿到锁。
+       
+       所以针对Redis集群这种情况，还有其他方案 (Redlock算法 与 Redisson 实现)
+       
+        
+       
+   
 #### 项目中除了使用 redis 实现分布式锁，还有哪些使用场景？
-
+    
+  ![](interview.assets/分布式锁.png)
+    
 #### redis 的数据持久化机制？如何保证数据不丢失？当 redis 内存满了以后，内存的淘汰策略？
 
 #### Redis 主从复制的原理
