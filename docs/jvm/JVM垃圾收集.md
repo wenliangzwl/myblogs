@@ -109,4 +109,35 @@
     
    ![](jvm.assets/CMS收集器.png)
    
+   优点: 并发收集、低停顿
    
+   缺点: 
+    
+    对CPU资源敏感(会抢占服务资源); 
+    
+    无法处理*浮动垃圾*(并发标记和并发清理阶段又产生的垃圾，只有下一次gc才会清理); 
+    
+    因为使用 "标记-清除"算法,所以会有大量的空间碎片，不过可以通过参数 - XX:+UseCMSCompactAtFullCollection 在执行完清除后再做整理
+   
+    执行过程不确定性,会存在上一次垃圾回收还没执行完，又会触发垃圾回收的情况,特别是在并发标记和并发清理阶段，系统一边回收一边运行，
+    还没回收玩又触发full gc,也就是"concurrent mode failure"，此时会进入STO，用serial old垃圾收集器来回收
+   
+   CMS相关核心参数
+    
+    1. -XX:+UseConcMarkSweepGC：启用cms 
+    
+    2. -XX:ConcGCThreads：并发的GC线程数 
+    
+    3. -XX:+UseCMSCompactAtFullCollection：FullGC之后做压缩整理（减少碎片） 
+    
+    4. -XX:CMSFullGCsBeforeCompaction：多少次FullGC之后压缩一次，默认是0，代表每次FullGC后都会压缩一 次
+    
+    5. -XX:CMSInitiatingOccupancyFraction: 当老年代使用达到该比例时会触发FullGC（默认是92，这是百分比） 
+    
+    6. -XX:+UseCMSInitiatingOccupancyOnly：只使用设定的回收阈值(-XX:CMSInitiatingOccupancyFraction设 定的值)，如果不指定，JVM仅在第一次使用设定值，后续则会自动调整 
+    
+    7. -XX:+CMSScavengeBeforeRemark：在CMS GC前启动一次minor gc，目的在于减少老年代对年轻代的引 用，降低CMS GC的标记阶段时的开销，一般CMS的GC耗时 80%都在标记阶段 
+    
+    8. -XX:+CMSParallellnitialMarkEnabled：表示在初始标记的时候多线程执行，缩短STW 
+    
+    9. -XX:+CMSParallelRemarkEnabled：在重新标记的时候多线程执行，缩短STW;
