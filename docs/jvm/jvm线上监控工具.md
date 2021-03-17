@@ -356,6 +356,9 @@ Usage:
     示例：
         jmap -heap pid  -- 显示堆中摘要信息
         jmap -histo pid   --  显示堆中对象的统计信息
+        jmap -histo pid > ./log.txt  -- 将堆中对象的统计信息输出到文件
+         jmap ‐dump:format=b,file=eureka.hprof pid 导出堆内存文件 
+         （也可以设置内存溢出自动导出dump文件(内存很大的时候，可能会导不出来) 1. -XX:+HeapDumpOnOutOfMemoryError 2. -XX:HeapDumpPath=./ （路径））
    
   参数选项说明如下：
   
@@ -559,13 +562,29 @@ Usage:
     示例:
         jstack -l pid
         jstack -F pid 
+        jstack pid     查找死锁
+
   
   参数选项说明如下:
   
    ![1571118778874](jvm.assets/jstack.png)
   
     注意：在实际运行中，往往一次 dump 的信息，还不足以确认问题。建议产生三次 dump 信息，如果每次 dump 都指向同一个问题，才能确定问题的典型性。
-    
+
+#### jstack找出占用cpu最高的线程堆栈信息
+
+  1. 使用命令top -p <pid> ，显示你的java进程的内存情况，pid是你的java进程号，比如19661
+  
+  2，按H，获取每个线程的内存情况
+
+  3，找到内存和cpu占用最高的线程tid，比如19664 
+  
+  4，转为十六进制得到 0x4cd0，此为线程id的十六进制表示
+
+  5，执行 jstack 19663|grep -A 10 4cd0，得到线程堆栈信息中 4cd0 这个线程所在行的后面10行，从堆栈中可以发现导致cpu飙高的调用方法
+
+  6，查看对应的堆栈信息找出可能存在问题的代码
+
  
 #### 5.1. 系统线程状态 
    在 dump 文件里，值得关注的 线程状态 有：
