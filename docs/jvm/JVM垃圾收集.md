@@ -66,7 +66,7 @@
    
 ##### Parallel Scavenge (并行) 收集器(-XX:+UseParallelGC ,-XX:+UseParallelOldGC)
    
-   Parallel 是 Seruial 的多线程版本,除了使用多线程进行垃圾收集，其余行为(控制参数、收集算法、回收算法等)，和Serial 类似。
+   Parallel 是 Serial 的多线程版本,除了使用多线程进行垃圾收集，其余行为(控制参数、收集算法、回收算法等)，和Serial 类似。
    它的默认收集线程数跟cpu核数相同，但是也可以用参数(-XX:ParallelGCThreads)指定收集线程数，一般不推荐修改。
    
    Parallel 关注的是吞吐量(高效率的利用CPU). CMS 等其他垃圾收集器关注更多的是用户线程的停顿时间(主要为了提高用户体验)。吞吐量就是CPU中用于运行用户代码的时间与CPU总消耗时间的比值.
@@ -93,7 +93,7 @@
    CMS(Concurrent Mark Sweep) 收集器是一种以获取最短回收停顿时间为目标的收集器。非常符合在注重用户体验的应用上使用，是HotSpot
    第一款真正意义上的并发收集器,也是第一次实现了让垃圾收集线程与用户线程(基本上)同时工作。
    
-   CMS 采用的是 标记-清除算法实现, 它的运作过程相比于其他的垃圾收集器来说更加复杂一些，主要步骤为:
+   CMS 采用的是 *标记-清除*算法实现, 它的运作过程相比于其他的垃圾收集器来说更加复杂一些，主要步骤为:
    
     初始标记: 暂停所以的其他线程(STW),并记录gc roots 直接能引用的对象，速度很快.
     
@@ -130,11 +130,11 @@
     
     3. -XX:+UseCMSCompactAtFullCollection：FullGC之后做压缩整理（减少碎片） 
     
-    4. -XX:CMSFullGCsBeforeCompaction：多少次FullGC之后压缩一次，默认是0，代表每次FullGC后都会压缩一 次
+    4. -XX:CMSFullGCsBeforeCompaction：多少次FullGC之后压缩一次，默认是0，代表每次FullGC后都会压缩一次
     
     5. -XX:CMSInitiatingOccupancyFraction: 当老年代使用达到该比例时会触发FullGC（默认是92，这是百分比） 
     
-    6. -XX:+UseCMSInitiatingOccupancyOnly：只使用设定的回收阈值(-XX:CMSInitiatingOccupancyFraction设 定的值)，如果不指定，JVM仅在第一次使用设定值，后续则会自动调整 
+    6. -XX:+UseCMSInitiatingOccupancyOnly：只使用设定的回收阈值(-XX:CMSInitiatingOccupancyFraction设定的值)，如果不指定，JVM仅在第一次使用设定值，后续则会自动调整 
     
     7. -XX:+CMSScavengeBeforeRemark：在CMS GC前启动一次minor gc，目的在于减少老年代对年轻代的引 用，降低CMS GC的标记阶段时的开销，一般CMS的GC耗时 80%都在标记阶段 
     
