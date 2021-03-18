@@ -1,5 +1,7 @@
-- 设计模式
-   - [JVM线上监控工具](jvm/jvm线上监控工具.md)
+- JVM
+   - [JVM](jvm/jvm.md)
    - [JVM底层之类加载](jvm/JVM底层之类加载.md)
+   - [JVM垃圾收集](jvm/JVM垃圾收集.md)
+   - [JVM线上监控工具](jvm/jvm线上监控工具.md)
    - [JAVA服务线上问题](jvm/JAVA服务线上问题.md)
 - [首页](README.md)
