@@ -21,7 +21,7 @@
    4. 与spring 有很好的集成
    
    5. 提供映射标签，支持对象与数据库的ORM 字段关系映射；提供对象关系映射标签，支持对象关系组件维护。
-
+    
 #### Mybatis 的缺点 
    
    1. SQL 语句的编写工作量较大，尤其当字段多，关联表多时，对开发人员编写SQL 语句的功底有一定要求。
@@ -99,4 +99,23 @@
    为需要拦截的接口生成代理对象以实现接口方法拦截功能， 每当执行这 4 种接口对象的方法时，就会进入拦截方法，具体就是 InvocationHandler 的 invoke() 方法， 当然， 只会拦截那些你指定需要拦截的方法。
    
    编写插件： 实现 Mybatis 的 Interceptor 接口并复写 intercept()方法， 然后在给插件编写注解， 指定要拦截哪一个接口的哪些方法即可， 记住， 别忘了在配置文件中配置你编写的插件。
+
+#### Mybatis 使用的设计模式
    
+   Builder模式，例如SqlSessionFactoryBuilder、XMLConfigBuilder、XMLMapperBuilder、XMLStatementBuilder、CacheBuilder；
+   
+   工厂模式，例如SqlSessionFactory、ObjectFactory、MapperProxyFactory；
+   
+   单例模式，例如ErrorContext和LogFactory；
+   
+   代理模式，Mybatis实现的核心，比如MapperProxy、ConnectionLogger，用的jdk的动态代理；还有executor.loader包使用了cglib或者javassist达到延迟加载的效果；
+   
+   组合模式，例如SqlNode和各个子类ChooseSqlNode等；
+   
+   模板方法模式，例如BaseExecutor和SimpleExecutor，还有BaseTypeHandler和所有的子类例如IntegerTypeHandler；
+   
+   适配器模式，例如Log的Mybatis接口和它对jdbc、log4j等各种日志框架的适配实现；
+   
+   装饰者模式，例如Cache包中的cache.decorators子包中等各个装饰者的实现；
+   
+   迭代器模式，例如迭代器模式PropertyTokenizer；
