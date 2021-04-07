@@ -115,11 +115,13 @@
 #### redis 的 rehash 的过程？
 
 #### Redis 有哪些数据类型？List 中数据非常多怎么办？
-    
+
   string、 list、 hash、set、zset 
-  
-  
-    
+
+  ![](interview.assets/redis五种数据结构.png)
+
+   
+   
 
 #### Redis 的持久化机制？AOF 和 RDB 的优缺点？
 
