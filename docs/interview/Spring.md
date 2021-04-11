@@ -173,3 +173,34 @@
     
 #### Spring 的 AOP 的使用场景？AOP 机制有什么好处？
 
+
+#### 事务的隔离级别和传播行为
+
+   事务的隔离级别
+
+      read uncommited：是最低的事务隔离级别，它允许另外一个事务可以看到这个事务未提交的数据。
+      read commited：保证一个事物提交后才能被另外一个事务读取。另外一个事务不能读取该事物未提交的数据。
+      repeatable read：这种事务隔离级别可以防止脏读，不可重复读。但是可能会出现幻象读。它除了保证一个事务不能被另外一个事务读取未提交的数据之外还避免了以下情况产生（不可重复读）。
+      serializable：这是花费最高代价但最可靠的事务隔离级别。事务被处理为顺序执行。除了防止脏读，不可重复读之外，还避免了幻象读（避免三种）。
+   
+   propagion_xxx:事务的传播行为
+
+      保证同一个事务中
+      PROPAGATION_REQUIRED 支持当前事务，如果不存在 就新建一个(默认) -- required
+      PROPAGATION_SUPPORTS 支持当前事务，如果不存在，就不使用事务    -- supports
+      PROPAGATION_MANDATORY 支持当前事务，如果不存在，抛出异常      --  mandatory
+      
+      保证没有在同一个事务中
+      PROPAGATION_REQUIRES_NEW 如果有事务存在，挂起当前事务，创建一个新的事务  -- requires_new
+      PROPAGATION_NOT_SUPPORTED 以非事务方式运行，如果有事务存在，挂起当前事务 -- not_supported
+      PROPAGATION_NEVER 以非事务方式运行，如果有事务存在，抛出异常             -- never
+      PROPAGATION_NESTED 如果当前事务存在，则嵌套事务执行                     -- nested
+
+
+#### Spring Bean的生命周期
+
+   1. 实例化 Instantiation
+   2. 属性赋值 Populate
+   3. 初始化 Initialization
+   4. 销毁 Destruction
+

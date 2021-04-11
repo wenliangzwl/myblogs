@@ -44,6 +44,16 @@
    再改善: 
        
        使用 set key value [EX seconds][PX milliseconds][NX|XX] 命令 看上去很OK，实际上在Redis集群的时候也会出现问题，
+
+         EX seconds: 设定过期时间，单位为秒
+         PX milliseconds: 设定过期时间，单位为毫秒
+         NX: 仅当key不存在时设置值
+         XX: 仅当key存在时设置值
+         
+         public boolean tryLock_with_set(String key, String UniqueId, int seconds) {
+            return "OK".equals(jedis.set(key, UniqueId, "NX", "EX", seconds));
+         }
+
        比如说A客户端在Redis的master节点上拿到了锁，但是这个加锁的key还没有同步到slave节点，master故障，发生故障转移，
        一个slave节点升级为master节点，B客户端也可以获取同个key的锁，但客户端A也已经拿到锁了，这就导致多个客户端都拿到锁。
        
@@ -121,7 +131,66 @@
   ![](interview.assets/redis五种数据结构.png)
 
    
+   string 应用场景
+
+      计数器 （INCR article:readcount:{文章id}  GET article:readcount:{文章id} ）
+      Web集群session共享（spring session + redis实现session共享）
+      分布式系统全局序列号	（INCRBY  orderId  1000		//redis批量生成序列号提升性能）
+
+   Hash应用场景
+
+      对象缓存（HMSET  user  {userId}:name  zhuge  {userId}:balance  1888）
+      电商购物车 （1）以用户id为key （2）商品id为field （3）商品数量为value
+        （添加商品hset cart:1001 10088 1
+         增加数量hincrby cart:1001 10088 1
+         商品总数hlen cart:1001
+         删除商品hdel cart:1001 10088
+         获取购物车所有商品hgetall cart:1001）  
    
+   List应用场景
+
+      常用数据结构：
+      Stack(栈) = LPUSH + LPOP
+      Queue(队列）= LPUSH + RPOP
+      Blocking MQ(阻塞队列）= LPUSH + BRPOP
+
+      应用场景：
+      1. 微博消息和微信公号消息
+      2. 微博和微信公号消息流
+
+   Set应用场景
+
+      1. 微信抽奖小程序
+         1）点击参与抽奖加入集合
+            SADD key {userlD}
+         2）查看参与抽奖所有用户
+            SMEMBERS key	  
+         3）抽取count名中奖者
+            SRANDMEMBER key [count] / SPOP key [count]
+
+      2. 微信微博点赞，收藏，标签
+         1) 点赞
+            SADD  like:{消息ID}  {用户ID}
+         2) 取消点赞
+            SREM like:{消息ID}  {用户ID}
+         3) 检查用户是否点过赞
+            SISMEMBER  like:{消息ID}  {用户ID}
+         4) 获取点赞的用户列表
+            SMEMBERS like:{消息ID}
+         1) 获取点赞用户数 
+            SCARD like:{消息ID}
+
+   Zset集合操作实现排行榜
+
+      1）点击新闻
+         ZINCRBY  hotNews:20190819  1  守护香港
+      2）展示当日排行前十
+         ZREVRANGE  hotNews:20190819  0  9  WITHSCORES 
+      3）七日搜索榜单计算
+         ZUNIONSTORE  hotNews:20190813-20190819  7 hotNews:20190813  hotNews:20190814.. hotNews:20190819
+      4）展示七日排行前十
+         ZREVRANGE hotNews:20190813-20190819  0  9  WITHSCORES
+
 
 #### Redis 的持久化机制？AOF 和 RDB 的优缺点？
 
@@ -131,3 +200,11 @@
 
 
 #### Redis 中遇到热 key 会造成什么问题？如何发现热 key？如何解决热 key 的问题？
+
+   热key 遇到问题
+      
+      当前key是一个热点key（例如一个热门的娱乐新闻），并发量非常大。 重建缓存不能在短时间完成， 可能是一个复杂计算， 例如复杂的SQL、 多次IO、 多个依赖等。
+   
+   解决热key
+
+      要解决这个问题主要就是要避免大量线程同时重建缓存。 我们可以利用互斥锁来解决，此方法只允许一个线程重建缓存， 其他线程等待重建缓存的线程执行完， 重新从 缓存获取数据即可。
