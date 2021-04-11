@@ -24,7 +24,7 @@
    
    获取一个对象的反射类，有以下3种方式
       
-      new 一个对象，然后对象.getClass() 方法
+      new 一个对象，然后对象.getClass()方法
       
       通过 Class.forName() 方法
       
