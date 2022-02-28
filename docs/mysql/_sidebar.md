@@ -1,5 +1,5 @@
 - MySQL
-  - [MySQL](mysql/Mysql索引底层数据结构与算法.md)
+  - [MySQL索引底层数据结构与算法](mysql/Mysql索引底层数据结构与算法.md)
   - [MySQL](mysql/mysql.md)
   - [B+索引](mysql/B加树索引.md)
   - [Explain关键字解析](mysql/Explain关键字解析.md)
