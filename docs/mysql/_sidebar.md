@@ -1,8 +1,8 @@
 - MySQL
   - [MySQL索引底层数据结构与算法](mysql/Mysql索引底层数据结构与算法.md)
+  - [Explain工具](mysql/Explain工具.md)
   - [MySQL](mysql/mysql.md)
   - [B+索引](mysql/B加树索引.md)
-  - [Explain关键字解析](mysql/Explain关键字解析.md)
   - [查询优化器工作原理](mysql/查询优化器工作原理.md)
   - [Mysql事务以及锁原理](mysql/Mysql事务以及锁原理.md)
   - [Mysql索引](mysql/索引.md)
