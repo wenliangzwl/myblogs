@@ -18,15 +18,18 @@
    如果，我们误删了数据库,可以使用binlog进行归档!要使用binlog归档，首先我们得记录binlog，因此需要先开启MySQL的 binlog功能。
 
 ##### 1.1 配置my.cnf 
+   
+  注意格式一定不要错误, 由于格式错了，走了好多弯路，下面配置是 mysql 5.7  版本的开启binlog 配置
 
 ```
-配置开启binlog
-log‐bin=/usr/local/mysql/data/binlog/mysql‐bin
+配置开启binlog  默认 位置 /var/lib/mysql/
+log_bin=mysql‐bin
 注意5.7以及更高版本需要配置本项:server‐id=123454(自定义,保证唯一性);
+server‐id=10
 #binlog格式，有3种statement,row,mixed
-binlog‐format=ROW
+binlog_format=ROW
 #表示每1次执行写入就与硬盘同步，会影响性能，为0时表示，事务提交时mysql不做刷盘操作，由系统决定
-sync‐binlog=1
+sync_binlog=1
 ```
 
 ##### 1.2 binlog 命令 
@@ -41,7 +44,7 @@ reset master;  -- 清空所有的bin‐log日志
 ##### 1.3 查看 binlog 内容
 
 ```
-/usr/local/mysql/bin/mysqlbinlog ‐‐no‐defaults /usr/local/mysql/data/binlog/mysql‐bin.000001  -- 查看binlog内容
+/usr/bin/mysqlbinlog ‐‐no‐defaults /usr/local/mysql/data/binlog/mysql‐bin.000001  -- 查看binlog内容
 ```
 
 binlog里的内容不具备可读性，所以需要我们自己去判断恢复的逻辑点位，怎么观察呢?看重点信息，比如begin,commit这种 关键词信息，
@@ -54,12 +57,12 @@ binlog里的内容不具备可读性，所以需要我们自己去判断恢复�
 ```
 从bin‐log恢复数据
 恢复全部数据
-   /usr/local/mysql/bin/mysqlbinlog ‐‐no‐defaults /usr/local/mysql/data/binlog/mysql‐bin.000001 |mysql ‐uroot ‐p tuling(数据库名)
+   /usr/bin/mysqlbinlog ‐‐no‐defaults /var/lib/mysql/mysql‐bin.000001 |mysql ‐uroot ‐p tuling(数据库名)
 恢复指定位置数据
-   /usr/local/mysql/bin/mysqlbinlog ‐‐no‐defaults ‐‐start‐position="408" ‐‐stop‐position="731"
-   /usr/local/mysql/data/binlog/mysql‐bin.000001 |mysql ‐uroot ‐p tuling(数据库)
+   /usr/bin/mysqlbinlog ‐‐no‐defaults ‐‐start‐position="408" ‐‐stop‐position="731"
+   /var/lib/mysql/mysql‐bin.000001 |mysql ‐uroot ‐p tuling(数据库)
 恢复指定时间段数据
-   /usr/local/mysql/bin/mysqlbinlog ‐‐no‐defaults /usr/local/mysql/data/binlog/mysql‐bin.000001 ‐‐stop‐date= "2018‐03‐02 12:00:00" ‐‐start‐date= "2019‐03‐02 11:55:00"|mysql ‐uroot ‐p test(数 据库)
+   /usr/bin/mysqlbinlog ‐‐no‐defaults /var/lib/mysql/mysql‐bin.000001 ‐‐stop‐date= "2018‐03‐02 12:00:00" ‐‐start‐date= "2019‐03‐02 11:55:00"|mysql ‐uroot ‐p test(数 据库)
 ```
 
 ##### 1.5 归档测试 
