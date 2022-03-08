@@ -4,6 +4,7 @@
   - [SQL底层原理](mysql/SQL底层原理.md)
   - [MySQL](SQL索引优化/SQL索引优化.md)
   - [MySQL](SQL索引优化2/SQL索引优化2.md)
+  - [MySQL](Mysql事务隔离级别与锁机制/Mysql事务隔离级别与锁机制.md.md)
   - [MySQL](mysql/mysql.md)
   - [B+索引](mysql/B加树索引.md)
   - [查询优化器工作原理](mysql/查询优化器工作原理.md)
@@ -12,5 +13,3 @@
   - [Mysql锁](mysql/MySQL锁.md)
   - [Mysql日志](mysql/Mysql日志.md)
 - [首页](README.md)
-
-SQL索引优化2.md
