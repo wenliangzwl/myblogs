@@ -252,7 +252,7 @@ for(select id from t2){
 }
 ```
 
-#### 3.2 exists:当t2表的数据集小于t1表的数据集时，exists优于in
+#### 3.2 exists:当t1表的数据集小于t2表的数据集时，exists优于in
 
   将主查询A的数据，放到子查询B中做条件验证，根据验证结果(true或false)来决定主查询的数据是否保留
 
