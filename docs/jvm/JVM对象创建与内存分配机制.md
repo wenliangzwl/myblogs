@@ -1,32 +1,7 @@
-### jvm 内存模型 
-   
-#### jvm 整体结构及内存模型
+###  1. jvm 对象创建与内存分配 
+#### 1.1 对象创建过程 
 
-   ![](jvm.assets/jvm整体内存结构.png)
-
-#### jvm 内存参数设置 
-
-   ![](jvm.assets/jvm内存参数设置.png)
-   
-   参数设置: 
-   
-```
-java ‐Xms2048M ‐Xmx2048M ‐Xmn1024M ‐Xss512K ‐XX:MetaspaceSize=256M ‐XX:MaxMetaspaceSize=256M ‐jar demo‐server.jar
-```   
-   
-   关于元空间的JVM参数有两个：-XX:MetaspaceSize=N和 -XX:MaxMetaspaceSize=N 
-   
-   -XX：MaxMetaspaceSize： 设置元空间最大值， 默认是-1， 即不限制， 或者说只受限于本地内存大小。 
-   
-   -XX：MetaspaceSize： 指定元空间触发Fullgc的初始阈值(元空间无固定初始大小)， 以字节为单位，默认是21M，达到该值就会触发 full gc进行类型卸载， 同时收集器会对该值进行调整：
-    如果释放了大量的空间， 就适当降低该值； 如果释放了很少的空间， 那么在不超过-XX：MaxMetaspaceSize（如果设置了的话） 的情况下， 适当提高该值。这个跟早期jdk版本的-XX:PermSize参数意思不一样，- XX:PermSize代表永久代的初始容量。 
-    
-   由于调整元空间的大小需要Full GC，这是非常昂贵的操作，如果应用在启动的时候发生大量Full GC，通常都是由于永久代或元空间发生 了大小调整，基于这种情况，一般建议在JVM参数中将MetaspaceSize和MaxMetaspaceSize设置成一样的值，并设置得比初始值要大， 对于8G物理内存的机器来说，一般我会将这两个值都设置为256M。
-   
-
-###  jvm 对象创建与内存分配 
-
-#### 对象创建过程 
+![](jvm.assets/对象的创建流程.png)
 
    *类加载检查》分配内存》初始化》设置对象头》执行<init>方法*
    
@@ -36,9 +11,19 @@ java ‐Xms2048M ‐Xmx2048M ‐Xmn1024M ‐Xss512K ‐XX:MetaspaceSize=256M ‐
      
     这个步骤有两个问题： 
     
-      1.如何划分内存。 (指针碰撞、空闲列表)
+      1.如何划分内存。 (指针碰撞、空闲列表) 
+         1）“指针碰撞”(Bump the Pointer)(默认用指针碰撞)如果Java堆中内存是绝对规整的，所有用过的内存都放在一边，
+            空闲的内存放在另一边，中间放着一个指针作为分界点 的指示器，那所分配内存就仅仅是把那个指针向空闲空间那边挪动
+            一段与对象大小相等的距离。
+        2)  如果Java堆中的内存并不是规整的，已使用的内存和空 闲的内存相互交错，那就没有办法简单地进行指针碰撞了，
+            虚拟 机就必须维护一个列表，记 录上哪些内存块是可用的，在分配的时候从列表中找到一块足够大的空间划分给对象
+            实例， 并更新列表上的记录。
       
       2.在并发情况下， 可能出现正在给对象A分配内存，指针还没来得及修改，对象B又同时使用了原来的指针来分配内存的情况。 （cas、 TLAB(本地线程分配缓存)）
+        1) CAS(compare and swap) 虚拟机采用CAS配上失败重试的方式保证更新操作的原子性来对分配内存空间的动作进行同步处理。
+        2) 本地线程分配缓冲(Thread Local Allocation Buffer,TLAB)把内存分配的动作按照线程划分在不同的空间之中
+           进行，即每个线程在Java堆中预先分配一小块内存。通过­XX:+/­ UseTLAB参数来设定虚拟机是否使用TLAB
+           (JVM会默认开启­XX:+UseTLAB)，­XX:TLABSize 指定TLAB大小。
       
    3. 初始化: 内存分配完成后，虚拟机需要将分配到的内存空间都初始化为零值（不包括对象头）， 如果使用TLAB，这一工作过程也 可以提前至TLAB分配时进行。这一步操作保证了对象的实例字段在Java代码中可以不赋初始值就直接使用，
       程序能访问 到这些字段的数据类型所对应的零值。 
@@ -47,12 +32,96 @@ java ‐Xms2048M ‐Xmx2048M ‐Xmn1024M ‐Xss512K ‐XX:MetaspaceSize=256M ‐
     
    5. 执行<init>方法: 执行<init>方法，即对象按照程序员的意愿进行初始化。对应到java语言层面上讲，就是为属性赋值（注意，这与上面的赋 零值不同，这是由程序员赋的值），和执行构造方法。
   
-#### 什么是指针压缩？ 为什么要进行指针压缩？
+#### 1.2 什么是指针压缩？ 为什么要进行指针压缩？
+
+##### 1.2.1 对象大小查看
+
+  对象大小可以用jol­core包查看，引入依赖
+
+```xml
+<dependency>
+<groupId>org.openjdk.jol</groupId> 3 <artifactId>jol‐core</artifactId>
+</dependency>
+```
+
+```java
+package com.wlz.jvm;
+
+/**
+ * 计算对象大小
+ *
+ * @author wlz
+ * @date 2022-03-20  11:07 下午
+ */
+public class JOLSampleTest {
+
+    public static void main(String[] args) {
+        ClassLayout layout = ClassLayout.parseInstance(new Object());
+        System.out.println(layout.toPrintable());
+
+        System.out.println();
+        ClassLayout layout1 = ClassLayout.parseInstance(new int[]{});
+        System.out.println(layout1.toPrintable());
+
+        System.out.println();
+        ClassLayout layout2 = ClassLayout.parseInstance(new A());
+        System.out.println(layout2.toPrintable());
+    }
+
+    // ‐XX:+UseCompressedOops 默认开启的压缩所有指针
+    // ‐XX:+UseCompressedClassPointers 默认开启的压缩对象头里的类型指针Klass Pointer
+    // Oops : Ordinary Object Pointers
+    public static class A {
+        //8B mark word
+        //4B Klass Pointer 如果关闭压缩‐XX:‐UseCompressedClassPointers或‐XX:‐UseCompressedOops，则占用8B
+        int id; //4B
+        String name; //4B 如果关闭压缩‐XX:‐UseCompressedOops，则占用8B
+        byte b; //1B
+        Object o; //4B 如果关闭压缩‐XX:‐UseCompressedOops，则占用8B
+    }
+
+}
+
+// 运行结果:
+java.lang.Objectobjectinternals:
+        OFFSET SIZE TYPE DESCRIPTION VALUE
+        0 4 (object header) 01 00 00 00 (00000001 00000000 00000000 00000000) (1) //mark word
+        4 4 (object header) 00 00 00 00 (00000000 00000000 00000000 00000000) (0) //mark word
+        8 4 (object header) e5 01 00 f8 (11100101 00000001 00000000 11111000) (‐134217243) //Klass Pointer
+        12 4 (loss due to the next object alignment)
+        Instancesize:16bytes
+        Spacelosses:0bytesinternal+4bytesexternal=4bytestotal
+        
+        [Iobjectinternals:
+        OFFSET SIZE TYPE DESCRIPTION VALUE
+        0 4 (object header) 01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+        4 4 (object header) 00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+        8 4 (object header) 6d 01 00 f8 (01101101 00000001 00000000 11111000) (‐134217363)
+        12 4 (object header) 00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+        16 0 int [I.<elements> N/A
+        Instancesize:16bytes
+        Spacelosses:0bytesinternal+0bytesexternal=0bytestotal
+
+        com.wlz.jvm.JOLSampleTest$Aobjectinternals:
+        OFFSET SIZE TYPE DESCRIPTION VALUE
+        0 4 (object header) 01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+        4 4 (object header) 00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+        8 4 (object header) 61 cc 00 f8 (01100001 11001100 00000000 11111000) (‐134165407)
+        124intA.id0
+        161byteA.b0
+        17 3 (alignment/padding gap)
+        20 4 java.lang.String A.name null
+        24 4 java.lang.Object A.o null
+        28 4 (loss due to the next object alignment)
+        Instancesize:32bytes
+        Spacelosses:3bytesinternal+4bytesexternal=7bytestotal
+```
    
+##### 1.2.2  什么是指针压缩？ 
+
    jdk1.6  开始，64bit  的操作系统支持指针压缩，即将对象进行压缩、优化处理，使对象能够占用更小的内存空间，减少内存的消耗
-   
-   
-   为什么要进行指针压缩？ 
+
+##### 1.2.3 为什么要进行指针压缩?
       
       1.在64位平台的HotSpot中使用32位指针，内存使用会多出1.5倍左右，使用较大指针在主内存和缓存之间移动数据， 占用较大宽带，同时GC也会承受较大压力 
       
@@ -64,18 +133,100 @@ java ‐Xms2048M ‐Xmx2048M ‐Xmn1024M ‐Xss512K ‐XX:MetaspaceSize=256M ‐
       
       5.堆内存大于32G时，压缩指针会失效，会强制使用64位(即8字节)来对java对象寻址，这就会出现1的问题，所以堆内 存不要大于32G为好
    
-#### 对象内存分配     
+#### 1.3 对象内存分配     
 
    ![](jvm.assets/对象内存分配.png)
    
-#### 栈上分配 （栈上分配依赖于逃逸分析和标量替换）
+#### 1.4 栈上分配 （栈上分配依赖于逃逸分析和标量替换）
    
    我们通过JVM内存分配可以知道JAVA中的对象都是在堆上进行分配，当对象没有被引用的时候，需要依靠GC进行回收内存，如果对象数量较多的时候，会给GC带来较大压力，也间接影响了应用的性能。为了减少临时对象在堆内分配的数量，
    JVM通过逃逸分析确定该对象不会被外部访问。如果不会逃逸可以将该对象在栈上分配内存，这样该对象所占用的 内存空间就可以随栈帧出栈而销毁，就减轻了垃圾回收的压力。 
    
    对象逃逸分析：就是分析对象动态作用域，当一个对象在方法中被定义后，它可能被外部方法所引用，例如作为调用参数传递到其他地方中。
 
-#### 对象在eden 区 分配
+```java
+package com.wlz.jvm;
+
+/**
+ * @author wlz
+ * @date 2022-03-20  11:15 下午
+ */
+public class Test {
+
+    public User test1() {
+        User user = new User();
+        user.setId(1);
+        user.setName("name");
+        return user;
+    }
+
+    public void test2() {
+        User user = new User();
+        user.setId(1);
+        user.setName("name2");
+    }
+}
+
+```
+
+  很显然test1方法中的user对象被返回了，这个对象的作用域范围不确定，test2方法中的user对象我们可以确定当方法结束
+  这个对象就可以认为是无效对象了，对于这样的对象我们其实可以将其分配在栈内存里，让其在方法结束时跟随栈内 存一起被回收掉。
+  JVM对于这种情况可以通过开启逃逸分析参数(-XX:+DoEscapeAnalysis)来优化对象内存分配位置，
+  使其通过标量替换优 先分配在栈上(栈上分配)，JDK7之后默认开启逃逸分析，如果要关闭使用参数(-XX:-DoEscapeAnalysis)
+  
+##### 1.4.1 标量替换:
+    
+    通过逃逸分析确定该对象不会被外部访问，并且对象可以被进一步分解时，JVM不会创建该对象，而是将该 对象成员变量分解若干个被这个方法使用的成员变量所代替，
+    这些代替的成员变量在栈帧或寄存器上分配空间，这样就 不会因为没有一大块连续空间导致对象内存不够分配。开启标量替换参数(-XX:+EliminateAllocations)，JDK7之后默认 开启。
+
+##### 1.4.2 标量与聚合量:
+
+    标量即不可被进一步分解的量，而JAVA的基本数据类型就是标量(如:int，long等基本数据类型以及 reference类型等)，
+    标量的对立就是可以被进一步分解的量，而这种量称之为聚合量。而在JAVA中对象就是可以被进一 步分解的聚合量。
+
+##### 1.4.3 栈上分配 示例
+
+```java
+package com.wlz.jvm;
+
+/**
+ *   栈上分配
+ *
+ *   代码调用了1亿次alloc()，如果是分配到堆上，大概需要1GB以上堆空间，如果堆空间小于该值，必然会触发GC。
+ *
+ *   使用如下参数不会发生GC 6 * ‐Xmx15m ‐Xms15m ‐XX:+DoEscapeAnalysis ‐XX:+PrintGC ‐XX:+EliminateAllocations （开启逃逸分析）
+ *
+ *   使用如下参数都会发生大量GC   （关闭逃逸分析）
+ *         ‐Xmx15m ‐Xms15m ‐XX:‐DoEscapeAnalysis ‐XX:+PrintGC ‐XX:+EliminateAllocations
+ *
+ *         ‐Xmx15m ‐Xms15m ‐XX:+DoEscapeAnalysis ‐XX:+PrintGC ‐XX:‐EliminateAllocations
+ */
+public class AllotOnStack {
+
+    public static void main(String[] args) {
+        long start = System.currentTimeMillis();
+
+        for (int i = 0; i < 100000000; i++) {
+            alloc();
+        }
+        long end = System.currentTimeMillis();
+
+        System.out.println(end - start);
+    }
+
+    private static void alloc() {
+        User user = new User();
+
+        user.setId(1);
+
+        user.setName("测试");
+    }
+}
+```
+
+  结论:栈上分配依赖于逃逸分析和标量替换
+
+#### 1.5 对象在eden 区 分配
    
    大多数情况下，对象在年轻代中 Eden 区分配。当 Eden 区没有足够空间进行分配时，虚拟机将发起一次Minor GC。 
    
@@ -90,6 +241,35 @@ java ‐Xms2048M ‐Xmx2048M ‐Xmn1024M ‐Xss512K ‐XX:MetaspaceSize=256M ‐
     大量的对象被分配在eden区，eden区满了后会触发minor gc，可能会有99%以上的对象成为垃圾被回收掉，剩余存活 的对象会被挪到为空的那块survivor区，下一次eden区满了后又会触发minor gc，
     把eden区和survivor区垃圾对象回 收，把剩余存活的对象一次性挪动到另外一块为空的survivor区，因为新生代的对象都是朝生夕死的，存活时间很短，所 以JVM默认的8:1:1的比例是很合适的，让eden区尽量的大，survivor区够用即可，
     JVM默认有这个参数-XX:+UseAdaptiveSizePolicy(默认开启)，会导致这个8:1:1比例自动变化，如果不想这个比例有变 化可以设置参数-XX:-UseAdaptiveSizePolicy
+
+
+##### 1.5.1 示例 
+
+```java
+package com.wlz.jvm;
+
+/**
+ *  添加 运行 jvm 参数  ‐XX:+PrintGCDetails （打印gc过程）
+ */
+public class GCTest {
+
+    public static void main(String[] args) {
+
+        byte[] allocation1,allocation2,allocation3,allocation4,allocation5,allocation6;
+
+        allocation1 = new byte[60000*1024];
+
+//        allocation2 = new byte[8000*1024];
+
+//        allocation3 = new byte[1000*1024];
+        allocation4 = new byte[1000*1024];
+        allocation5 = new byte[1000*1024];
+        allocation6 = new byte[1000*1024];
+
+    }
+}
+
+```
 
 #### 大对象直接进入老年代 
 

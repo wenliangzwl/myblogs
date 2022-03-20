@@ -1,5 +1,7 @@
 - JVM
-   - [JVM](jvm/jvm.md)
+   - [JVM类加载机制](jvm/JVM类加载机制.md)
+   - [JVM内存模型](jvm/JVM内存模型.md)
+   - [JVM对象创建与内存分配机制](jvm/JVM对象创建与内存分配机制.md)
    - [JVM底层之类加载](jvm/JVM底层之类加载.md)
    - [JVM垃圾收集](jvm/JVM垃圾收集.md)
    - [JVM线上监控工具](jvm/jvm线上监控工具.md)
