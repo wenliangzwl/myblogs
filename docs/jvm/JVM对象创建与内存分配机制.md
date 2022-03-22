@@ -249,19 +249,91 @@ public class AllotOnStack {
 package com.wlz.jvm;
 
 /**
- *  添加 运行 jvm 参数  ‐XX:+PrintGCDetails （打印gc过程）
+ *  添加 运行 jvm 参数  -XX:+PrintGCDetails（打印gc过程）
  */
 public class GCTest {
 
     public static void main(String[] args) {
 
-        byte[] allocation1,allocation2,allocation3,allocation4,allocation5,allocation6;
+        byte[] allocation1,allocation2; 
 
         allocation1 = new byte[60000*1024];
 
 //        allocation2 = new byte[8000*1024];
 
-//        allocation3 = new byte[1000*1024];
+    }
+}
+
+// 结果 
+Heap
+        PSYoungGen      total 76288K, used 65243K [0x000000076ab00000, 0x0000000770000000, 0x00000007c0000000)
+        eden space 65536K, 99% used [0x000000076ab00000,0x000000076eab6d48,0x000000076eb00000)
+        from space 10752K, 0% used [0x000000076f580000,0x000000076f580000,0x0000000770000000)
+        to   space 10752K, 0% used [0x000000076eb00000,0x000000076eb00000,0x000000076f580000)
+        ParOldGen       total 175104K, used 0K [0x00000006c0000000, 0x00000006cab00000, 0x000000076ab00000)
+        object space 175104K, 0% used [0x00000006c0000000,0x00000006c0000000,0x00000006cab00000)
+        Metaspace       used 3283K, capacity 4496K, committed 4864K, reserved 1056768K
+class space    used 358K, capacity 388K, committed 512K, reserved 1048576K
+
+
+```
+
+  我们可以看出eden区内存几乎已经被分配完全(即使程序什么也不做，新生代也会使用至少几M内存)。
+  假如我们再为 allocation2分配内存会出现什么情况呢?
+
+```java
+package com.wlz.jvm;
+
+/**
+ *  添加 运行 jvm 参数  -XX:+PrintGCDetails（打印gc过程）
+ */
+public class GCTest {
+
+    public static void main(String[] args) {
+
+        byte[] allocation1,allocation2;
+
+        allocation1 = new byte[60000*1024];
+
+        allocation2 = new byte[8000*1024];
+
+    }
+}
+ // 结果： 
+[GC (Allocation Failure) [PSYoungGen: 63932K->496K(76288K)] 63932K->60504K(251392K), 0.0086769 secs] [Times: user=0.02 sys=0.01, real=0.01 secs]
+        Heap
+        PSYoungGen      total 76288K, used 9807K [0x000000076ab00000, 0x0000000774000000, 0x00000007c0000000)
+        eden space 65536K, 14% used [0x000000076ab00000,0x000000076b417c80,0x000000076eb00000)
+        from space 10752K, 4% used [0x000000076eb00000,0x000000076eb7c010,0x000000076f580000)
+        to   space 10752K, 0% used [0x0000000773580000,0x0000000773580000,0x0000000774000000)
+        ParOldGen       total 175104K, used 60008K [0x00000006c0000000, 0x00000006cab00000, 0x000000076ab00000)
+        object space 175104K, 34% used [0x00000006c0000000,0x00000006c3a9a010,0x00000006cab00000)
+        Metaspace       used 3284K, capacity 4496K, committed 4864K, reserved 1056768K
+class space    used 358K, capacity 388K, committed 512K, reserved 1048576K
+
+```
+
+   根据以上打印结果, 可以分析出， 因为在给allocation2 分配内存的时候 eden 区的内存已经被分配完了，当eden区没有足够的空间进行分配时，虚拟机将会发起一次minor gc, gc 期间
+   虚拟机又发现allocation1 无法存入 survior 区，所以只能把新生代的对象 提前转移到老年代中去，老年代的空间足够放allocation1 ，所以不会出现 full gc, 执行 minor gc，后
+   后面分配的内存的对象如果可以存在 eden 区，还是会在eden 区 分配内存，执行 以下示例验证: 
+
+````java
+package com.wlz.jvm;
+
+/**
+ *  添加 运行 jvm 参数  -XX:+PrintGCDetails（打印gc过程）
+ */
+public class GCTest {
+
+    public static void main(String[] args) {
+
+        byte[] allocation1,allocation2 ,allocation3,allocation4,allocation5,allocation6;
+
+        allocation1 = new byte[60000*1024];
+
+        allocation2 = new byte[8000*1024];
+
+        allocation3 = new byte[1000*1024];
         allocation4 = new byte[1000*1024];
         allocation5 = new byte[1000*1024];
         allocation6 = new byte[1000*1024];
@@ -269,11 +341,27 @@ public class GCTest {
     }
 }
 
-```
+结果:
+        [GC (Allocation Failure) [PSYoungGen: 63932K->560K(76288K)] 63932K->60568K(251392K), 0.0085781 secs] [Times: user=0.02 sys=0.01, real=0.01 secs]
+        Heap
+        PSYoungGen      total 76288K, used 14141K [0x000000076ab00000, 0x0000000774000000, 0x00000007c0000000)
+        eden space 65536K, 20% used [0x000000076ab00000,0x000000076b843650,0x000000076eb00000)
+        from space 10752K, 5% used [0x000000076eb00000,0x000000076eb8c010,0x000000076f580000)
+        to   space 10752K, 0% used [0x0000000773580000,0x0000000773580000,0x0000000774000000)
+        ParOldGen       total 175104K, used 60008K [0x00000006c0000000, 0x00000006cab00000, 0x000000076ab00000)
+        object space 175104K, 34% used [0x00000006c0000000,0x00000006c3a9a010,0x00000006cab00000)
+        Metaspace       used 3284K, capacity 4496K, committed 4864K, reserved 1056768K
+class space    used 358K, capacity 388K, committed 512K, reserved 1048576K
 
-#### 大对象直接进入老年代 
+````
 
-   大对象就是需要大量连续内存空间的对象（比如：字符串、数组）。JVM参数 -XX:PretenureSizeThreshold 可以设置大 对象的大小，如果对象超过设置大小会直接进入老年代，不会进入年轻代，但是这个参数只在 Serial 和ParNew两个收集器下 有效。
+  上一个示例 eden 内存占了14% ， 此示例 eden 内存占了 20% ，说明 allocation3、allocation4、allocation5、allocation6 也被分配到了eden 中去。这是因为 eden 此时的
+  内存够用。
+
+#### 1.6 大对象直接进入老年代 
+
+   大对象就是需要大量连续内存空间的对象（比如：字符串、数组）。JVM参数 -XX:PretenureSizeThreshold 可以设置大对象的大小，如果对象超过设置大小会直接进入老年代，不会进入年轻代，
+   但是这个参数只在 Serial 和ParNew两个收集器下 有效。
    
    比如设置JVM参数：-XX:PretenureSizeThreshold=1000000 (单位是字节) -XX:+UseSerialGC ，再执行下上面的第一 个程序会发现大对象直接进了老年代 
    
@@ -281,28 +369,43 @@ public class GCTest {
         
       为了避免为大对象分配内存时的复制操作而降低效率。
 
-#### 长期存活的对象将进入老年代
+#### 1.7 长期存活的对象将进入老年代
    
    虚拟机采用了分代收集的思想来管理内存，那么内存回收时就必须能识别哪些对象应放在新生代，哪些对象应放在老年代中。为了做到这一点，虚拟机给每个对象一个对象年龄（Age）计数器。 
    如果对象在 Eden 出生并经过第一次 Minor GC 后仍然能够存活，并且能被 Survivor 容纳的话，将被移动到 Survivor 空间中，并将对象年龄设为1。对象在 Survivor 中每熬过一次 MinorGC，年龄就增加1岁，
-   当它的年龄增加到一定程度 （默认为15岁，CMS收集器默认6岁，不同的垃圾收集器会略微有点不同），就会被晋升到老年代中。对象晋升到老年代 的年龄阈值，可以通过参数 -XX:MaxTenuringThreshold 来设置。
+   当它的年龄增加到一定程度 （默认为15岁，CMS收集器默认6岁，不同的垃圾收集器会略微有点不同），就会被晋升到老年代中。对象晋升到老年代 的年龄阈值，
+   可以通过参数 -XX:MaxTenuringThreshold 来设置。
    
-#### 对象动态年龄判断
+#### 1.8 对象动态年龄判断
    
    当前放对象的Survivor区域里(其中一块区域，放对象的那块s区)，一批对象的总大小大于这块Survivor区域内存大小的 50%(-XX:TargetSurvivorRatio可以指定)，
    那么此时大于等于这批对象年龄最大值的对象，就可以直接进入老年代了，
    例如Survivor区域里现在有一批对象，年龄1+年龄2+年龄n的多个年龄对象总和超过了Survivor区域的50%，此时就会 把年龄n(含)以上的对象都放入老年代。这个规则其实是希望那些可能是长期存活的对象，尽早进入老年代。
    *对象动态年 龄判断机制一般是在minor gc之后触发的。*
 
-#### 老年代空间分配担保机制 
+#### 1.9 老年代空间分配担保机制 
+
+   年轻代每次minor gc 之前jvm 都会计算下老年代剩余可用空间
+
+   如果这个可用空间小于年轻代里现有的所有对象大小之和 *包括垃圾对象*
+
+   就会看一个 "-XX:-HandlePromotionFailure" (jdk1.8默认就设置了) 的参数是否设置了
+
+   如果有这个参数，就会看看老年代的可用空间内存大小，是否大于之前每一次minor gc 后进入老年代的对象的平均大小。
+
+   如果上一步的结果是小于或者 之前的参数未设置，那么就会触发一次full gc,对老年代和年轻代一起回收一次垃圾对象，如果回收完还是没有足够的、
+   空间存放新的对象就会 发生 "OOM"。
+
+   当然,如果minor gc 之后剩余存活的需要挪动到老年代的对象还是大于老年代可用空间，那么也会触发 full gc, full gc 完之后
+   如果还是 没有空间可以放minor gc 之后存活对象， 也会发生 "OOM" .
 
    ![](jvm.assets/空间分配担保机制.png)
    
-#### 对象内存回收
+#### 1.10 对象内存回收
    
    堆内放着大部分的对象实例，对堆进行垃圾回收之前，第一步是要判断哪些对象已经死亡（即不在被任何途径使用的对象）
    
-##### 引用计数法 
+##### 1.10.1 引用计数法 
     
    给对象中添加一个引用计数器，每当有一个地方引用它，计数器就加1；当引用失效，计数器就减1；任何时候计数器为0 的对象就是不可能再被使用的。 
     
@@ -310,13 +413,103 @@ public class GCTest {
     
    所谓对象之间的相互引用问题，如下面代码所示：除了对象objA 和 objB 相互引用着对 方之外，这两个对象之间再无任何引用。但是他们因为互相引用对方，导致它们的引用计数器都不为0，于是引用计数算 法无法通知 GC 回收器回收他们。
     
-##### 可达性分析算法
+```java
+package com.wlz.jvm;
+
+/**
+ * @author wlz
+ * @date 2022-03-21  8:52 下午
+ */
+public class ReferenceCountingGc {
+
+    Object instance = null;
+
+    public static void main(String[] args) {
+        ReferenceCountingGc obja = new ReferenceCountingGc();
+        ReferenceCountingGc objb = new ReferenceCountingGc();
+        obja.instance = objb;
+        objb.instance = obja;
+        obja = null;
+        objb = null;
+    }
+}
+
+```
+
+##### 1.10.2 可达性分析算法
    
    将“GC Roots” 对象作为起点，从这些节点开始向下搜索引用的对象，找到的对象都标记为非垃圾对象，其余未标记的 对象都是垃圾对象 
     
    GC Roots根节点：线程栈的本地变量、静态变量、本地方法栈的变量等等
+
+![](jvm.assets/可达性分析算法.png)
+
+#### 1.11 常见引用类型
+  
+   java的引用类型一般分为四种:强引用、软引用、弱引用、虚引用 
    
-#### 如何判断一个类是无用的类
+##### 1.11.1 强引用
+  
+  普通的变量引用
+
+```java
+public static User user=new User();
+```
+##### 1.11.2 软引用:
+
+  将对象用SoftReference软引用类型的对象包裹，正常情况不会被回收，但是GC做完后发现释放不出空间存放新的对象，
+  则会把这些软引用的对象回收掉。软引用可用来实现内存敏感的高速缓存。
+
+```java
+public static SoftReference<User> user = new SoftReference<User>(new User());
+``` 
+ 软引用在实际中有重要的应用，例如浏览器的后退按钮。按后退时，这个后退时显示的网页内容是重新进行请求还是从 缓存中取出呢?这就要看具体的实现策略了。 
+    
+    (1)如果一个网页在浏览结束时就进行内容的回收，则按后退查看前面浏览过的页面时，需要重新构建 
+ 
+    (2)如果将浏览过的网页存储到内存中会造成内存的大量浪费，甚至会造成内存溢出
+
+
+##### 1.11.3 弱引用
+  
+   将对象用WeakReference软引用类型的对象包裹，弱引用跟没引用差不多，GC会直接回收掉，很少用
+
+```java
+public static WeakReference<User> user = new WeakReference<User>(new User());
+```
+
+##### 1.11.4 虚引用
+
+  虚引用也称为幽灵引用或者幻影引用，它是最弱的一种引用关系，几乎不用
+
+#### 1.12 finalize() 方法最终判定对象是否存活
+
+即使在可达性分析算法中不可达的对象，也并非是“非死不可”的，这时候它们暂时处于“缓刑”阶段，要真正宣告一 个对象死亡，至少要经历再次标记过程。
+ 
+  标记的前提是对象在进行可达性分析后发现没有与GC Roots相连接的引用链。
+
+   1. 第一次标记并进行一次筛选。
+    
+    筛选的条件是此对象是否有必要执行finalize()方法。
+   
+    当对象没有覆盖finalize方法，对象将直接被回收。
+   
+   2. 第二次标记 
+      
+    如果这个对象覆盖了finalize方法，finalize方法是对象脱逃死亡命运的最后一次机会，如果对象要在finalize()中成功拯救 自己，
+    只要重新与引用链上的任何的一个对象建立关联即可，譬如把自己赋值给某个类变量或对象的成员变量，
+    那在第 二次标记时它将移除出“即将回收”的集合。如果对象这时候还没逃脱，那基本上它就真的被回收了。
+    
+    注意:一个对象的finalize()方法只会被执行一次，也就是说通过调用finalize方法自我救命的机会就一次。
+   
+
+   示例代码:
+  
+```java
+
+```
+   
+#### 1.13 如何判断一个类是无用的类
    
    方法区主要回收的是无用的类，那么如何判断一个类是无用的类的呢？ 
    
@@ -328,9 +521,9 @@ public class GCTest {
     
     该类对应的 java.lang.Class 对象没有在任何地方被引用，无法在任何地方通过反射访问该类的方法。
 
-#### 常量池
+#### 1.14 常量池
 
-##### Class常量池与运行时常量池
+##### 1.14.1 Class常量池与运行时常量池
 
    Class常量池可以理解为是Class文件中的资源仓库。 Class文件中除了包含类的版本、字段、方法、接口等描述信息外， 还有一项信息就是常量池(constant pool table)，用于存放编译期生成的各种字面量(Literal)和符号引用(Symbolic References)。
 
@@ -359,7 +552,7 @@ int d = "abcdefgdsaadwfa";
 
       这些常量池现在是静态信息，只有到运行时被加载到内存后，这些符号才有对应的内存地址信息，这些常量池一旦被装 入内存就变成运行时常量池，对应的符号引用在程序加载或运行时会被转变为被加载到内存区域的代码的直接引用，也 就是我们说的动态链接了。例如，compute()这个符号引用在运行时就会被转变为compute()方法具体代码在内存中的 地址，主要通过对象头里的类型指针去转换直接引用。
 
-##### 字符串常量池
+##### 1.14.2 字符串常量池
 
    1. 字符串的分配，和其他的对象分配一样，耗费高昂的时间与空间代价，作为最基础的数据类型，大量频繁的创建 字符串，极大程度地影响程序的性能 
    
@@ -371,7 +564,7 @@ int d = "abcdefgdsaadwfa";
       
       存在该字符串，返回引用实例，不存在，实例化该字符串并放入池中
 
-###### 三种字符串操作(Jdk1.7 及以上版本)
+###### 1.14.3 三种字符串操作(Jdk1.7 及以上版本)
 
    直接赋值字符串
 
@@ -413,7 +606,7 @@ System.out.println(s1 == s2); //false
 
       String中的intern方法是一个 native 的方法，当调用 intern方法时，如果池已经包含一个等于此String对象的字符串 （用equals(oject)方法确定），则返回池中的字符串。否则，将intern返回的引用指向当前字符串 s1(jdk1.6版本需要将 s1 复制到字符串常量池里)。
 
-###### 字符串常量池位置
+###### 1.14.4 字符串常量池位置
 
    Jdk1.6及之前： 有永久代, 运行时常量池在永久代，运行时常量池包含字符串常量池
    
