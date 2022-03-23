@@ -167,6 +167,7 @@ java.endorsed.dirs = /opt/jdk1.8.0_91/jre/lib/endorsed
 java.io.tmpdir = /tmp 
 line.separator =
 ```
+
 ### 2.jstat信息统计监控工具
   jstat 是用于识别 虚拟机 各种 运行状态信息 的命令行工具。它可以显示 本地 或者 远程虚拟机 进程中的 类装载、内存、垃圾收集、
   jit 编译 等运行数据，它是 线上 定位 jvm 性能 的首选工具。
@@ -192,7 +193,7 @@ Usage: jstat -help|-options
     interval: 执行每次的 间隔时间，单位为 毫秒。
     count: 用于指定输出记录的 次数，缺省则会一直打印。
     示例:jstat -gc pid 
-        jstat -gc pid 250 10 -- 250(时间) 10 打印10次
+        jstat -gc pid 250 10 -- 250(时间ms) 10 打印10次
   参数选项说明如下：
     
     class: 显示 类加载 ClassLoad 的相关信息；
@@ -485,6 +486,39 @@ Heap dump file created
 ```
 
    导出的 dump 文件可以通过 MAT、VisualVM 和 jhat、perfMa 等工具查看分析，后面会详细介绍。
+
+##### 3.3.1 示例代码
+
+```java
+package com.wlz.jvm;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * @author wlz
+ * @date 2022-03-21  9:22 下午
+ */
+public class OOMTest {
+
+    // JVM设置
+    // -Xms10M -Xmx10M -XX:+PrintGCDetails -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/Users/wlz/Desktop/jvm.dump
+    public static void main(String[] args) {
+
+        List<Object> list = new ArrayList<>();
+        int i = 0;
+        int j = 0;
+        while (true) {
+            list.add(new User(i++, UUID.randomUUID().toString()));
+            new User(j--, UUID.randomUUID().toString());
+        }
+    }
+}
+
+```
+
+可以用jvisualvm命令工具导入该dump文件分析
 
 ### 4.jhat堆快照分析工具
    jhat（JVM Heap Analysis Tool）命令通常与 jmap 搭配使用，用来分析 jmap 生成的 dump。
