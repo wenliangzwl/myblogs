@@ -1,0 +1,10 @@
+-------------------------------------------------------------------------------
+Test set: com.wlz.ApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.652 s <<< FAILURE! - in com.wlz.ApplicationTests
+test(com.wlz.ApplicationTests)  Time elapsed: 0.109 s  <<< ERROR!
+org.springframework.web.client.ResourceAccessException: I/O error on GET request for "http://localhost:8080/user/process": Connection refused (Connection refused); nested exception is java.net.ConnectException: Connection refused (Connection refused)
+	at com.wlz.ApplicationTests.test(ApplicationTests.java:30)
+Caused by: java.net.ConnectException: Connection refused (Connection refused)
+	at com.wlz.ApplicationTests.test(ApplicationTests.java:30)
+

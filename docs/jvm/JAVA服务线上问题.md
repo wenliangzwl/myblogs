@@ -68,6 +68,95 @@
    如上图，找到了耗 CPU 高的线程对应的线程名称 “AsyncLogger-1”，以及看到了该线程正在执行代码的堆栈。
    最后，根据堆栈里的信息，找到对应的代码.
    
+#### 1.4 示例 
+
+##### 1.4.1 程序 (不要带package 名，不然执行不了)
+```java
+/**
+ *  cpu 飙高 程序
+ */
+public class CupHighMath {
+
+    public static final int initData = 666;
+    public static User user = new User();
+
+
+    public int compute() { //一个方法对应一块栈帧内存区域
+        int a = 1;
+        int b = 2;
+        int c = (a + b) * 10;
+        return c;
+    }
+
+    public static void main(String[] args) {
+        CupHighMath math = new CupHighMath();
+        while (true) {
+            math.compute();
+        }
+    }
+
+}
+
+```
+
+##### 1.4.2 Linux 启动 (前提: 将CupHighMath 类源文件，上传至 linux 上)
+
+```shell
+javac CupHighMath.java 
+java CupHighMath 
+```
+
+![](jvm.assets/CpuHighMath.png)
+
+##### 1.4.3 使用 jps 找到 运行类的 进程id 
+
+```shell
+jps -l
+```
+
+![](jvm.assets/jps-l.png)
+
+##### 1.4.4 使用 top -p pid 显示java进程的内存情况，pid是java进程号
+
+```shell
+top -p 11253 
+```
+
+![](jvm.assets/top-p.png)
+
+##### 1.4.5 按H，获取每个线程的内存情况
+
+![](jvm.assets/H-tid.png)
+
+   如上图，进程 10765 内，最耗 CPU 的线程 PID 为 10804。
+
+##### 1.4.6 找到内存和cpu占用最高的线程tid，比如 11254 
+
+##### 1.4.7 转为十六进制得到 0x4cd0，此为线程id的十六进制表示
+
+  首先，将线程 PID 转化为 16 进制。
+
+  工具：printf
+
+   方法：printf "%x\n" 11254
+
+```shell
+printf "%x\n" 11254
+```
+
+![](jvm.assets/printf-tid.png)
+
+##### 1.4.8 执行 jstack 11253|grep -A 10 2bf6，得到线程堆栈信息中 4cd0 这个线程所在行的后面10行，从堆栈中可以发现导致cpu飙高的调 用方法
+
+```shell
+jstack 11253|grep -A 10 2bf6
+```
+
+![](jvm.assets/jstack-grep-A.png)
+
+##### 1.4.9 查看对应的堆栈信息找出可能存在问题的代码
+
+![](jvm.assets/cpu-high-issue.png)
 
 ### 2. 用jstack加进程id查找死锁
 
@@ -270,11 +359,227 @@ Found 1 deadlock.
 
 ### 3. 系统频繁full gc 导致系统卡顿原因分析 
 
-todo 
+#### 3.1 模拟分析 
+
+##### 3.1.1 配置及gc 情况 
+
+```
+机器配置:2核4G
+JVM内存大小:2G
+系统运行时间:7天
+期间发生的Full GC次数和耗时:500多次，200多秒 期间发生的Young GC次数和耗时:1万多次，500多秒
+```
+
+##### 3.1.2 初步分析 
+
+  大致算下来每天会发生70多次Full GC，平均每小时3次，每次Full GC在400毫秒左右; 每天会发生1000多次Young GC，每分钟会发生1次，
+  每次Young GC在50毫秒左右。
+
+##### 3.1.3 jvm 参数设置如下: 
+
+```
+-Xms1536M
+-Xmx1536M
+-Xmn512M
+-Xss512K
+-XX:SurvivorRatio=6
+-XX:MetaspaceSize=256M
+-XX:MaxMetaspaceSize=256M
+-XX:+UseParNewGC
+-XX:+UseConcMarkSweepGC
+-XX:CMSInitiatingOccupancyFraction=75
+-XX:+UseCMSInitiatingOccupancyOnly
+```
+
+![](jvm.assets/模拟分析图.png)
+
+   结合对象挪动到老年代那些规则推理下我们这个程序可能存在的一些问题 经过分析感觉可能会由于对象动态年龄判断机制导致full gc较为频繁
+
+#### 3.2 示例
+
+##### 3.2.1 示例程序 
+
+docs/jvm/jar/jvm-full-gc
+
+####### 3.2.1.2 核心代码
+
+```java
+@RestController
+public class IndexController {
+
+    @RequestMapping("/user/process")
+    public String processUserData() throws InterruptedException {
+        ArrayList<User> users = queryUsers();
+
+        for (User user: users) {
+            //TODO 业务处理
+            System.out.println("user:" + user.toString());
+        }
+        return "end";
+    }
+
+    /**
+     * 模拟批量查询用户场景
+     * @return
+     */
+    private ArrayList<User> queryUsers() {
+        ArrayList<User> users = new ArrayList<>();
+        for (int i = 0; i < 5000; i++) {
+            users.add(new User(i,"zhuge"));
+        }
+        return users;
+    }
+}
+
+public class User {
+
+    private int id;
+    private String name;
+
+    byte[] a = new byte[1024*100];
+
+    public User(){}
+
+    public User(int id, String name) {
+        super();
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+    public void setId(int id) {
+        this.id = id;
+    }
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+```
+
+####### 3.2.2 模拟请求
+
+```java
+@RunWith(SpringRunner.class)
+@SpringBootTest(classes={Application.class})// 指定启动类
+public class ApplicationTests {
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Test
+    public void test() throws Exception {
+        for (int i = 0; i < 10000; i++) {
+            String result = restTemplate.getForObject("http://localhost:8080/user/process", String.class);
+            Thread.sleep(1000);
+        }
+    }
+
+}
+```
+
+##### 3.2.2 配置参数 启动程序， 由于是springboot 项目 直接idea 启动即可 
+
+```shell
+-Xms1536M -Xmx1536M -Xmn512M -Xss512K -XX:SurvivorRatio=6 -XX:MetaspaceSize=256M -XX:MaxMetaspaceSize=256M
+-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly
+```
+
+##### 3.2.3 打印 jstat gc 情况 
+
+```shell
+jstat -gc 58043 2000 10000
+```
+
+![](jvm.assets/示例模拟stat-gc-print.png)
+
+##### 3.2.4 对于对象动态年龄判断机制导致的full gc较为频繁可以先试着优化下JVM参数，把年轻代适当调大点:
+
+```shell
+-Xms1536M -Xmx1536M -Xmn1024M -Xss512K -XX:SurvivorRatio=6 -XX:MetaspaceSize=256M -XX:MaxMetaspaceSize=256M
+-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly
+```
+
+![](jvm.assets/模拟分析图-after.png)
+
+  优化完发现没什么变化，full gc的次数比minor gc的次数还多了
+
+![](jvm.assets/示例模拟stat-gc-print-after.png)
+
+##### 3.2.5 我们可以推测下full gc比minor gc还多的原因有哪些?
+
+    1、元空间不够导致的多余full gc
+    
+    2、显示调用System.gc()造成多余的full gc，这种一般线上尽量通过­XX:+DisableExplicitGC参数禁用，如果加上了这个JVM启动参数，那 么代码中调用System.gc()没有任何效果
+    
+    3、老年代空间分配担保机制
+
+##### 3.2.6 推测 
+
+   分析完这些我们推测的原因以及优化后，我们发现young gc和full gc依然很频繁了，而且看到有大量的对象频繁的被挪动到老年代，
+   这种情况我们可以借助jmap命令大概看下是什么对象
+
+##### 3.2.7 jmap 
+
+```shell
+jps -l 
+jmap -histo 58292 
+```
+
+![](jvm.assets/模拟分析-jmap-print.png)
+
+  查到了有大量User对象产生，这个可能是问题所在，但还是不确定，还必须找到对应的代码确认，如何去找对应的代码了?
+
+##### 3.2.8 代码分析 
+
+  1、代码里全文搜索生成User对象的地方(适合只有少数几处地方的情况) 
+  
+  2、如果生成User对象的地方太多，无法定位具体代码，我们可以同时分析下占用cpu较高的线程，一般有大量对象不断产生，对应的方法 代码肯定会被频繁调用，占用的cpu必然较高
+
+  可以用上面讲过的jstack或jvisualvm来定位cpu使用较高的代码，最终定位到的代码如下:
+
+![](jvm.assets/模拟分析-代码分析.png)
+
+![](jvm.assets/代码分析-核心代码-问题追踪.png)
+
+   同时，java的代码也是需要优化的，一次查询出500M的对象出来，明显不合适，要根据之前说的各种原则尽量优化到合适的值，
+   尽量消除这种朝生夕死的对象导致的full gc
+
+##### 3.2.9 优化代码
+
+![](jvm.assets/模拟分析-代码优化.png)
+
+##### 3.2.10  再次 打印 jstat gc 情况
+
+```shell
+jps -l 
+jstat -gc 58043 2000 10000
+```
+
+![](jvm.assets/模拟分析-jstat-gc-重新打印.png)
+
+  发现 现在很少 full gc了，几乎没有，minor gc 也不频繁了， 其实还可以再优化，将 500 改为 100 或者更小等。
+
+##### 3.2.11  思考 
+
+  这里还只是 模拟循环去请求，如果是 并发请求的话，比如 每秒 1万，10万 的请求 这些就得具体去分析，优化代码了。
 
 ### 4. 内存泄露到底是怎么回事？ 
 
-todo 
+   一般电商架构可能会使用多级缓存架构，就是redis加上JVM级缓存，大多数同学可能为了图方便对于JVM级缓存就 简单使用一个hashmap，
+   于是不断往里面放缓存数据，但是很少考虑这个map的容量问题，结果这个缓存map越来越大，一直占用着老 年代的很多空间，
+   时间长了就会导致full gc非常频繁，这就是一种内存泄漏，对于一些老旧数据没有及时清理导致一直占用着宝贵的内存 资源，时间长了除了导致full gc，
+   还有可能导致OOM。 这种情况完全可以考虑采用一些成熟的JVM级缓存框架来解决，比如ehcache等自带一些LRU数据淘汰算法的框架来作为JVM级的缓存。
+
    
 ### 5. JVM运行情况预估 
 
