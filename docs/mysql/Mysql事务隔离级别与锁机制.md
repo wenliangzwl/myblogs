@@ -201,7 +201,7 @@ INSERT INTO`test`.`account`(`name`,`balance`)VALUES('lucy','2400');
 
 ##### 2.4.3.2 读已提交 
 
-  (1)打开一个客户端A，并设置当前事务模式为read committed(未提交读)，查询表account的所有记 录:
+  (1)打开一个客户端A，并设置当前事务模式为read committed(读已提交)，查询表account的所有记 录:
 
     set tx_isolation='read-committed'; (set session transaction isolation level read committed; -- 前面命令有时不生效，故使用后面)
 

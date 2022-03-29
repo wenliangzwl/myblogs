@@ -60,7 +60,7 @@
    
    ![](jvm.assets/Serial收集器.png)
    
-   Serial 优于其他垃圾收集器的地方就是*简单而高效(和其他收集器的单线程相比)*,因为没有线程交互的开销，所以可以获得很高的单线程手机效率.
+   Serial 优于其他垃圾收集器的地方就是*简单而高效(和其他收集器的单线程相比)*,因为没有线程交互的开销，所以可以获得很高的单线程收集效率.
    
    Serial Old 是Serial 的老年代版本,同样是一个单线程收集器，主要的两大用途为: 在JDK1.5及以前的版本与Parallel 搭配使用 和 作为CMS 的后备方案.
    
@@ -120,7 +120,7 @@
     因为使用 "标记-清除"算法,所以会有大量的空间碎片，不过可以通过参数 - XX:+UseCMSCompactAtFullCollection 在执行完清除后再做整理
    
     执行过程不确定性,会存在上一次垃圾回收还没执行完，又会触发垃圾回收的情况,特别是在并发标记和并发清理阶段，系统一边回收一边运行，
-    还没回收玩又触发full gc,也就是"concurrent mode failure"，此时会进入STO，用serial old垃圾收集器来回收
+    还没回收玩又触发full gc,也就是"concurrent mode failure"，此时会进入STW，用serial old垃圾收集器来回收
    
    CMS相关核心参数
     
@@ -179,7 +179,7 @@
    可以适当调整JVM参数如下:
 
 ```xml
-‐Xms3072M ‐Xmx3072M ‐Xmn2048M ‐Xss1M ‐XX:MetaspaceSize=256M ‐XX:MaxMetaspaceSize=256M ‐XX:SurvivorRatio=8 2 ‐XX:MaxTenuringThreshold=5‐XX:PretenureSizeThreshold=1M
+‐Xms3072M ‐Xmx3072M ‐Xmn2048M ‐Xss1M ‐XX:MetaspaceSize=256M ‐XX:MaxMetaspaceSize=256M ‐XX:SurvivorRatio=8 ‐XX:MaxTenuringThreshold=5 ‐XX:PretenureSizeThreshold=1M
 ```
 
    对于JDK8默认的垃圾回收器是-XX:+UseParallelGC(年轻代)和-XX:+UseParallelOldGC(老年代)，
@@ -200,8 +200,8 @@
 
 ```xml
 ‐Xms3072M ‐Xmx3072M ‐Xmn2048M ‐Xss1M ‐XX:MetaspaceSize=256M ‐XX:MaxMetaspaceSize=256M ‐XX:SurvivorRatio=8
-‐XX:MaxTenuringThreshold=5‐XX:PretenureSizeThreshold=1M‐XX:+UseParNewGC‐XX:+UseConcMarkSweepGC
-‐XX:CMSInitiatingOccupancyFraction=92‐XX:+UseCMSCompactAtFullCollection‐XX:CMSFullGCsBeforeCompaction=0
+‐XX:MaxTenuringThreshold=5 ‐XX:PretenureSizeThreshold=1M ‐XX:+UseParNewGC ‐XX:+UseConcMarkSweepGC
+‐XX:CMSInitiatingOccupancyFraction=92 ‐XX:+UseCMSCompactAtFullCollection ‐XX:CMSFullGCsBeforeCompaction=0
  
 ```
 
@@ -266,14 +266,15 @@ class D {
 
    漏标会导致被引用的对象被当成垃圾误删除，这是严重bug，必须解决，有两种解决方案： 增量更新（Incremental Update） 和原始快照（Snapshot At The Beginning，SATB） 。 
       
-      1）增量更新： 就是当黑色对象插入新的指向白色对象的引用关系时， 就将这个新插入的引用记录下来， 等并发扫描结束之后， 
-      再将这些记录过的引用关系中的黑色对象为根， 重新扫描一次。 这可以简化理解为，* 黑色对象一旦新插入了指向 白色对象的引用之后， 
-      它就变回灰色对象了。 *
+      1）增量更新(针对新增)： 就是当黑色对象插入新的指向白色对象的引用关系时， 就将这个新插入的引用记录下来， 等并发扫描结束之后， 
+      再将这些记录过的引用关系中的黑色对象为根， (重新标记)重新扫描一次。 这可以简化理解为，* 黑色对象一旦新插入了指向 白色对象的引用之后， 
+      它就变回(A)灰色对象了。 *
 
-      2)原始快照: 就是当灰色对象要删除指向白色对象的引用关系时， 就将这个要删除的引用记录下来， 在并发扫描结束之后， 
-      再将这些记录过的引用关系中的灰色对象为根， 重新扫描一次，这样就能扫描到白色的对象，
-      将白色对象直接标记为黑色(目的就是让这种对象在本轮gc清理中能存活下来，待下一轮gc的时候重新扫描，这个对象也有可能是浮动垃圾)
-      以上无论是对引用关系记录的插入还是删除， 虚拟机的记录操作都是通过写屏障实现的。
+      2)原始快照(针对删除): 就是当灰色对象要删除指向白色对象的引用关系时， 就将这个要删除的引用记录下来， 在并发扫描结束之后， 
+      再将这些记录过的引用关系中的灰色对象为根， (重新标记)重新扫描一次，这样就能扫描到白色的对象，
+      将(D)白色对象直接标记为黑色(目的就是让这种对象在本轮gc清理中能存活下来，待下一轮gc的时候重新扫描，这个对象也有可能是浮动垃圾)
+      
+   以上无论是对引用关系记录的插入还是删除， 虚拟机的记录操作都是通过写屏障实现的。
 
 
 ##### 3.4 读写屏障
