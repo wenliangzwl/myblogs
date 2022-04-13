@@ -248,9 +248,11 @@ public class VisibilityTest {
         Cache Line大小是64Byte。
         如果多个核的线程在操作同一个缓存行中的不同变量数据，那么就会出现频繁的缓存失效，
         即使在代码层面看这两个线程操作的数据之间完全没有关系。这种不合理的资源竞争情况就是伪共享（False Sharing）
+    举个例子: 现在有2个long 型变量 a 、b，如果有t1在访问a，t2在访问b，而a与b刚好在同一个 cache line中，此时t1先修改a，将导致b被刷新!
+
      避免伪共享:
         缓存行填充
-        使用@sun.misc.Contended 注解（Java8）
+        使用@sun.misc.Contended 注解（Java8）加上这个注解的类会自动补齐缓 存行，需要注意的是此注解默认是无效的，需要在jvm启动时设置 -XX:- RestrictContended 才会生效。
 
 linux下查看缓存行大小
 
@@ -551,11 +553,22 @@ Lock前缀实现了类似的能力，它先对总线和缓存加锁，然后执�
 
 ![1571294089088](concurrent.assets/mesi状态.png)
 
+#### 11.2 缓存行伪共享 
+
+    伪共享: （导致缓存行失效）
+        Cache Line大小是64Byte。
+        如果多个核的线程在操作同一个缓存行中的不同变量数据，那么就会出现频繁的缓存失效，
+        即使在代码层面看这两个线程操作的数据之间完全没有关系。这种不合理的资源竞争情况就是伪共享（False Sharing）
+    举个例子: 现在有2个long 型变量 a 、b，如果有t1在访问a，t2在访问b，而a与b刚好在同一个 cache line中，此时t1先修改a，将导致b被刷新!
+
+     避免伪共享:
+        缓存行填充
+        使用@sun.misc.Contended 注解（Java8）加上这个注解的类会自动补齐缓 存行，需要注意的是此注解默认是无效的，需要在jvm启动时设置 -XX:- RestrictContended 才会生效。
+
 
 ### 12. JVM-JMM-CPU底层全执行流程
 
 ![1571294089088](concurrent.assets/JVM-JMM-CPU底层全执行流程.png)
-
 
 
 

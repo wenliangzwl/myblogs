@@ -1,66 +1,4 @@
-## Java线程的中断机制
-    Java中断机制是一种协作机制，也就是说通过中断并不能直接终止另一个线程，而需要被中断的线程自己处理中断。
-    
-    API的使用：
-    interrupt()： 将线程的中断标志位设置为true，不会中断线程
-    isInterrupted(): 判断当前线程的中断标志位是否为true
-    Thread.interrupted()：判断当前线程的中断标志位是否为true，并清除中断标志位，重置为fasle
-
-```
-    public class ThreadInterruptTest {
-        static int i = 0;
-        public static void main(String[] args)  {
-            System.out.println("begin");
-            Thread t1 = new Thread(new Runnable() {
-                @Override
-                public synchronized void run() {
-                    while (true) {
-                        i++;
-                        System.out.println(i);
-                        // sleep
-                        // wait notify notifyAll  object monitor
-    //                    try {
-    //                        wait(2000);
-    //                    } catch (InterruptedException e) {
-    //                        e.printStackTrace();
-    //                    }
-    
-                        //Thread.currentThread().isInterrupted();  判断标志位是否为true           不会清除中断标志位
-                        //   Thread.interrupted() 判断标志位是否为true,清掉标志位，置为false        会清除中断标志位
-                        if (Thread.interrupted()) {
-                            System.out.println("======");
-                            break;
-                        }
-    
-                        if (i == 10) {
-                           // break;
-                        }
-    
-                    }
-                }
-            });
-    
-            t1.start();
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-    
-            //  仅仅是设置一个中断标志位  interrupt flag = true
-            // 唤醒 sleep,wait ，park 阻塞的线程  ，清掉标志位
-            // sleep()   会被中断唤醒，抛出sleep interrupted 异常
-            // wait（） & sychronized object monitor 会被中断唤醒，抛出 sleep interruptedException
-            // LockSupport.park & unpark 基于Thread  等待/唤醒机制 counter= 0 阻塞 counter=1 被唤醒 ，继续执行
-            t1.interrupt();
-    
-    
-    
-        }
-    }
-```
-
-## Java中的锁
+## 1. Java中的锁
     在Java中，多线程的情况下需要锁来保证数据的安全，锁一般分为两类：sychronized 和 Lock。
     • sychronized利用的是指令级别的monitor-enter 和 monitor-exit。
     • Lock 使用的则是代码级别实现的。在Doug Lea大神的操刀下利用CAS + 自旋 + volatile变量实现。
@@ -68,22 +6,27 @@
    
    ![JAVA中的锁](并发编程基础.assets/JAVA中的锁.png)
 
-## AQS的内部实现
-    Java并发编程的核心在于java.util.concurrent包。而juc当中大多数同步器实现都是围绕着共同的基础行为，比如等待队列、条件队列、
-    独占获取、共享获取等，而这个行为的抽象就是基于AbstractQueuedSynchronizer，简称AQS。
-    AQS定义了一套多线程访问共享资源的同步器框架，是一个依赖状态（state）的同步器。
+## 2. AQS的内部实现
+
+   Java并发编程的核心在于java.util.concurrent包。而juc当中大多数同步器实现都是围绕着共同的基础行为，比如等待队列、条件队列、
+   独占获取、共享获取等，而这个行为的抽象就是基于AbstractQueuedSynchronizer，简称AQS。
+   
+   AQS定义了一套多线程访问共享资源的同步器框架，是一个依赖状态（state）的同步器。
  
-    AQS具备特性：
+### 2.1 AQS具备特性
+
     • 阻塞等待队列
     • 共享/独占
     • 公平/非公平
     • 可重入
     • 允许中断
+
     这些特性是怎么实现的，以ReentrantLock为例：
     • 一般通过定义内部类Sync [sɪŋk] 继承AQS
     • 将同步器所有调用都映射到Sync对应的方法
     
-### AQS框架 - 管理状态
+### 2.2 AQS框架 - 管理状态
+
     1.AQS内部维护属性：volatile int state（32位）
         state表示资源的可用状态
     2.state三种访问方式
@@ -94,12 +37,26 @@
     4.AQS定义两种队列
         同步等待队列 (CLH）
         条件等待队列
-### 同步队列（CLH）
+
+  不同的自定义同步器争用共享资源的方式也不同。自定义同步器在实现时只需要实现共 享资源state的获取与释放方式即可，
+  至于具体线程等待队列的维护(如获取资源失败入队/ 唤醒出队等)，AQS已经在顶层实现好了。自定义同步器实现时主要实现以下几种方法:
+
+    isHeldExclusively():该线程是否正在独占资源。只有用到condition才需要去 实现它。
+    tryAcquire(int):独占方式。尝试获取资源，成功则返回true，失败则返回 false。
+    tryRelease(int):独占方式。尝试释放资源，成功则返回true，失败则返回 false。
+    tryAcquireShared(int):共享方式。尝试获取资源。负数表示失败;0表示成 功，但没有剩余可用资源;正数表示成功，且有剩余资源。
+    tryReleaseShared(int):共享方式。尝试释放资源，如果释放后允许唤醒后续 等待结点返回true，否则返回false。
+
+
+### 2.3 同步等待队列（CLH）
+
    CLH 同步队列是一个 FIFO 双向队列，AQS 依赖它来完成同步状态的管理：
    - 当前线程如果获取同步状态失败时，AQS则会将当前线程已经等待状态等信息构造成一个节点（Node）并将其加入到CLH同步队列，同时会阻塞当前线程
    - 当同步状态释放时，会把首节点唤醒，使其再次尝试获取同步状态。
 
-#### Node类介绍
+![](concurrent.assets/CLH.png)
+
+#### 2.3.1 Node类介绍
 ```
 static final class Node {
     // 节点分为两种模式： 共享式和独占式
@@ -159,7 +116,7 @@ static final class Node {
    
   ![image-20191024135816528](并发编程基础.assets/image-20191024135816528.png)
   
-#### 入队操作
+#### 2.3.2 入队操作
   通过“自旋”也就是死循环的方式来保证该节点能顺利的加入到队列尾部，只有加入成功才会退出循环，否则会一直循序直到成功。 
 ```
 private Node addWaiter(Node mode) {
@@ -200,7 +157,7 @@ for (;;) {
 
  ![image-20191024140040847](并发编程基础.assets/image-20191024140040847.png)
 
-#### 出队操作
+#### 2.3.3 出队操作
    同步队列（CLH）遵循FIFO，首节点是获取同步状态的节点，首节点的线程释放同步状态后，将会唤醒它的后继节点（next），而后继节点将会在获取同步状态成功时将自己设置为首节点         
 ```
 private void setHead(Node node) {
@@ -211,11 +168,16 @@ private void setHead(Node node) {
 ```
  ![image-20191024140117140](并发编程基础.assets/image-20191024140117140.png)
 
-### Condition队列 （条件队列）
+### 2.4 Condition队列 （条件队列）
+
    Condition 将 Object 监视器方法（wait、notify 和 notifyAll）分解成截然不同的对象，以便通过将这些对象与任意 Lock 实现组合使用，为每个对象提供多个等待 set（wait-set）。
    其中，Lock 替代了 synchronized 方法和语句的使用，Condition 替代了 Object 监视器方法的使用。
-   
-   ![image-20191024140552042](并发编程基础.assets/image-20191024140552042.png)
+
+   Condition 是一个多线程间协调通信的工具类，使得某个或者某些线程一起等待某个条件，只有当条件具备时，这些等待线程才会被唤醒，从而重新争夺锁。
+
+![](concurrent.assets/条件队列.png)
+
+![image-20191024140552042](并发编程基础.assets/image-20191024140552042.png)
 ```
 // ========== 阻塞 ==========   man  pthread_cond_wait
 // 造成当前线程在接到信号或被中断之前一直处于等待状态。
@@ -253,7 +215,7 @@ AQS 等待队列与 Condition 队列是**两个相互独立的队列**
 - `#await()` 就是在当前线程持有锁的基础上释放锁资源，并新建 Condition 节点加入到 Condition 的队列尾部，阻塞当前线程 。
 - `#signal()` 就是将 Condition 的头节点移动到 AQS 等待节点尾部，让其等待再次获取锁。
 
-#### 条件队列和同步队列的转换
+#### 2.4.1 条件队列和同步队列的转换
    **初始化状态**：AQS等待队列有 3 个Node，Condition 队列有 1 个Node(也有可能 1 个都没有) 
    
    ![image-20200715165549006](并发编程基础.assets/image-20200715165549006.png)
@@ -274,7 +236,7 @@ AQS 等待队列与 Condition 队列是**两个相互独立的队列**
       
   ![image-20200715165647653](并发编程基础.assets/image-20200715165647653.png)
   
-#### 入队操作
+#### 2.4.2 入队操作
 ```
 public final void await() throws InterruptedException {
     // 当前线程中断
@@ -328,7 +290,7 @@ private Node addConditionWaiter() {
     return node;
 }
 ```
-#### 出队操作
+#### 2.4.3 出队操作
   调用 ConditionObject的 `#signal()` 方法，将会唤醒在等待队列中等待最长时间的节点（条件队列里的首节点），在唤醒节点前，会将节点移到CLH同步队列中。 
 ```
 public final void signal() {
@@ -366,9 +328,23 @@ private void doSignal(Node first) {
 }
 ```
 
+### 3. AQS 的实现
 
+#### 3.1 ReentrantLock
 
-### ReentrantLock
+  ReentrantLock是一种基于AQS框架的应用实现，是JDK中的一种线程并发访问的同步手段，它的功能类似于synchronized是一种互斥锁，
+  可以保证线程安全。而且它具有比 synchronized更多的特性，比如它支持手动加锁与解锁，支持加锁的公平性。
+
+  ReentrantLock如何实现synchronized不具备的公平与非公平性呢? 在ReentrantLock内部定义了一个Sync的内部类，
+  该类继承AbstractQueuedSynchronized，对 该抽象类的部分方法做了实现;并且还定义了两个子类:
+        
+    1、FairSync 公平锁的实现
+    2、NonfairSync 非公平锁的实现 
+
+  这两个类都继承自Sync，也就是间接继承了AbstractQueuedSynchronized，所以这一个 ReentrantLock同时具备公平与非公平特性。 
+  
+  上面主要涉及的设计模式:模板模式-子类根据需要做具体业务实现
+ 
   同步队列(独占锁,只能有一个线程执行)
     
     ReentrantLock 加锁解锁过程：
@@ -728,7 +704,70 @@ main count down is ok
 
 ### AQS图
   ![AQS图](并发编程基础.assets/AQS.jpg)      
-   
+
+
+## Java线程的中断机制
+    Java中断机制是一种协作机制，也就是说通过中断并不能直接终止另一个线程，而需要被中断的线程自己处理中断。
+    
+    API的使用：
+    interrupt()： 将线程的中断标志位设置为true，不会中断线程
+    isInterrupted(): 判断当前线程的中断标志位是否为true
+    Thread.interrupted()：判断当前线程的中断标志位是否为true，并清除中断标志位，重置为fasle
+
+```
+    public class ThreadInterruptTest {
+        static int i = 0;
+        public static void main(String[] args)  {
+            System.out.println("begin");
+            Thread t1 = new Thread(new Runnable() {
+                @Override
+                public synchronized void run() {
+                    while (true) {
+                        i++;
+                        System.out.println(i);
+                        // sleep
+                        // wait notify notifyAll  object monitor
+    //                    try {
+    //                        wait(2000);
+    //                    } catch (InterruptedException e) {
+    //                        e.printStackTrace();
+    //                    }
+    
+                        //Thread.currentThread().isInterrupted();  判断标志位是否为true           不会清除中断标志位
+                        //   Thread.interrupted() 判断标志位是否为true,清掉标志位，置为false        会清除中断标志位
+                        if (Thread.interrupted()) {
+                            System.out.println("======");
+                            break;
+                        }
+    
+                        if (i == 10) {
+                           // break;
+                        }
+    
+                    }
+                }
+            });
+    
+            t1.start();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+    
+            //  仅仅是设置一个中断标志位  interrupt flag = true
+            // 唤醒 sleep,wait ，park 阻塞的线程  ，清掉标志位
+            // sleep()   会被中断唤醒，抛出sleep interrupted 异常
+            // wait（） & sychronized object monitor 会被中断唤醒，抛出 sleep interruptedException
+            // LockSupport.park & unpark 基于Thread  等待/唤醒机制 counter= 0 阻塞 counter=1 被唤醒 ，继续执行
+            t1.interrupt();
+    
+    
+    
+        }
+    }
+```
+
                 
    
    
