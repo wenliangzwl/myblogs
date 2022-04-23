@@ -397,7 +397,8 @@ public class ReentrantLockTest {
   ![加锁解锁过程](并发编程基础.assets/ReentrantLock.jpg)
   ![加锁解锁过程](并发编程基础.assets/加锁解锁过程.png)
 
-### Semaphore (计数信号量)
+### Semaphore (计数信号量)  -- 限流 
+
    Semaphore是一个计数信号量,Semaphore经常用于限制获取资源的线程数量
    Semaphore 信号量，用来控制同一时间，资源可被访问的线程数量，一般可用于流量的控制。
    
@@ -703,10 +704,11 @@ main count down is ok
        6.Semaphore ，需要拿到许可才能执行，并可以选择公平和非公平模式。
 
 ### AQS图
-  ![AQS图](并发编程基础.assets/AQS.jpg)      
+  ![AQS图](并发编程基础.assets/AQS.jpg)
 
 
 ## Java线程的中断机制
+
     Java中断机制是一种协作机制，也就是说通过中断并不能直接终止另一个线程，而需要被中断的线程自己处理中断。
     
     API的使用：
