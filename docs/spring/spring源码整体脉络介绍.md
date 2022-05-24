@@ -58,7 +58,22 @@
 
   该模块支持使用JUnit 或TetsNG 对Spring 组件进行单元测试和集成测试。
 
-### 2. Spring 整体脉络流程图
+### 2. spring 控制反转 和依赖注入
+
+  什么是控制反转？ 基于软件设计的一个重要思想： 依赖倒置原则(Dependency Inversion Principle) 
+
+  什么是依赖倒置原则: 假设 设计一辆汽车： 先设计轮子，然后根据轮子大小设计低盘，接着根据底盘设计车身，最后根据车身设计好整个车子。 
+    这里就出现了一个 依赖 关系， 汽车依赖 车身，车身依赖底盘，底盘依赖轮子。
+
+  反过来，汽车公司决定修改轮胎，那么只需要该轮子的设计，其他的就不需要动。轮胎依赖底盘，底盘依赖车身，车身依赖车子
+
+#### 2.1 IOC  最核心的思想
+
+   ioc 的思想最核心的地方在于，资源不由使用资源的双方管理，而由不使用资源的第三方(IOC容器)管理，这就可以带来很多好处。第一，资源集中管理，
+  实现资源的可配置和易管理。第二，降低了使用资源双方的依赖程度，也就是耦合度。
+
+
+### 3. Spring 整体脉络流程图
 
 ![image-20200514145316996](spring.assets/spring整体脉络图.png)
 
@@ -131,6 +146,7 @@ for(String beanName:context.getBeanDefinitionNames()){
 ##### @Component +@ComponentScan
   @ComponentScan默认扫描: @Component, @Repository，@Service, @Controller
 ```
+@Configuration
 @ComponentScan("com.wlz")
 public class AppConfig {
 }
@@ -189,6 +205,28 @@ public class AppConfig {
     }
 }
 ```
+
+###### 配置bean 的作用域对象 
+
+    1. singleton 单实例的（默认）
+
+    2. prototype 多实例的
+
+    3. request 同一次请求 
+
+    4. session 同一个回话级别
+
+###### @Lazy 
+
+```
+@Bean
+@Lazy
+public Persion persion() {
+    return new Persion();
+}
+```
+
+   主要针对单实例的bean 容器启动的时候，不创建对象，在第一次使用的时候才会创建对象。
 
 ##### @Import
 ```
@@ -284,6 +322,247 @@ public class MyConditional implements Condition {
   
   - @ConditionalOnProperty：指定的属性是否有指定的值
 
+
+##### 向容器中添加组件的方式 
+
+###### 1. 通过 @ComponentScan + @Controller @Service @Respository @Componet 
+
+    实用场景: 针对自己写的组件可以通过该方式来进行加载到容器 
+
+###### 2. 通过@Bean 的方式来导入组件 
+
+    适用于导入第三方组件 
+
+###### 3. 通过 @Import 来导入组件 （导入组件的id 为全类名路径）
+
+```
+
+@Configuration
+@Import(value = {A.class, B.class})
+public class AppConfig3 {
+	
+	
+}
+```
+
+###### 4. 通过 @Import 的 ImportSeletor 类实现组件的导入 (导入的组件为全类名)
+
+```
+@Configuration
+@Import(value = {A.class, B.class, MyImportSeletor.class})
+public class AppConfig3 {
+}
+
+public class MyImportSeletor implements ImportSelector {
+	@Override
+	public String[] selectImports(AnnotationMetadata importingClassMetadata) {
+		return new String[]{"com.wlz.bean.A"};
+	}
+}
+```
+
+###### 5. 通过@Improt 的 ImportBeanDefinitionRegister 导入组件 (可以指定bean 名称)
+
+
+```
+@Configuration
+@Import(value = {A.class, B.class, MyImportSeletor.class, MyImportBeanDefinitionRegistrar.class})
+public class AppConfig3 {
+
+}
+
+public class MyImportBeanDefinitionRegistrar implements ImportBeanDefinitionRegistrar {
+	@Override
+	public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
+        // 创建bean 定义
+		BeanDefinition beanDefinition = new RootBeanDefinition(A.class);
+		// 将bean 定义注册到容器中
+		registry.registerBeanDefinition("a",beanDefinition);
+
+	}
+}
+```
+
+###### 6. 通过 FactoryBean 接口实现组件注册
+
+```java
+public class MyFactoryBean implements FactoryBean<A> {
+
+	/**
+	 *  返回 bean 的对象
+	 * @return
+	 * @throws Exception
+	 */
+	@Override
+	public A getObject() throws Exception {
+		return new A();
+	}
+
+	/**
+	 *  返回bean 的类型
+	 * @return
+	 */
+	@Override
+	public Class<?> getObjectType() {
+		return A.class;
+	}
+
+	/**
+	 *  是否为单例
+	 * @return
+	 */
+	@Override
+	public boolean isSingleton() {
+		return true;
+	}
+}
+```
+
+##### bean 的初始化和销毁 
+
+   什么是 bean 的生命周期: 创建-》初始化-》 销毁 
+   
+   由容器管理Bean 的生命周期，可以通过自己指定bean 的初始化和销毁方法
+
+    针对单实例的bean, 容器启动的时候，bean 的对象就创建了，而且容器销毁的时候，也会调用bean 的销毁方法
+
+    针对多实例bean, 容器启动的时候，bean 是不会被创建，而是在获取bean 的时候被创建，bean的销毁不受ioc 容器的管理
+
+###### 1. 通过 initMethod 和 destroyMethod 方法 
+
+```java
+@Configuration
+public class AppConfig4 {
+
+    @Bean(initMethod = "init",destroyMethod = "destroy")
+    public MyBeanBeanInitDestroy myBeanBeanInitDestroy() {
+        return new MyBeanBeanInitDestroy();
+    }
+}
+
+public class MyBeanBeanInitDestroy {
+
+    public MyBeanBeanInitDestroy() {
+        System.out.println("MyBeanBeanInitDestroy Constructor.....");
+    }
+
+    public void init() {
+        System.out.println("MyBeanBeanInitDestroy init  .....");
+    }
+
+
+    public void destroy() {
+        System.out.println("MyBeanBeanInitDestroy destroy .......");
+    }
+}
+```
+
+###### 2. 通过 InitializingBean 和 DisposableBean 接口
+
+```java
+@Component
+public class MyBeanInitAndDestroy implements InitializingBean, DisposableBean {
+	@Override
+	public void destroy() throws Exception {
+		System.out.println("DisposableBean 的 destroy 方法。。。。。");
+	}
+
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		System.out.println("InitializingBean 的 afterPropertiesSet 方法。。。。");
+	}
+}
+```
+
+###### 3. 通过 JSR250 规范 提供的注解@PostConstruct 和  @ProDestroy 标注的方法
+
+```java
+@Component
+public class MyJSR250BeanInitAndDestroy {
+
+
+	public MyJSR250BeanInitAndDestroy() {
+		System.out.println("MyJSR250BeanInitAndDestroy Construct .......");
+	}
+
+
+	@PostConstruct
+	public void init() {
+		System.out.println("MyJSR250BeanInitAndDestroy @PostConstruct init....");
+	}
+
+	@PreDestroy
+	public void destory() {
+		System.out.println("MyJSR250BeanInitAndDestroy @PreDestroy destory .... ");
+	}
+}
+```
+
+###### 4. 通过 Spring 的 BeanPostProcessor 的 bean 的后置处理器 会拦截所有的bean 创建过程
+
+```java
+@Component
+public class MyBeanPostProcessor implements BeanPostProcessor {
+
+	@Override
+	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+		System.out.println("postProcessBeforeInitialization: "+ beanName);
+		return bean;
+	}
+
+	@Override
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		System.out.println("postProcessAfterInitialization: "+ beanName);
+		return bean;
+	}
+}
+```
+
+###### 5. 通过@Value + @PropertySource 来赋值 
+
+```java
+@Configuration
+@PropertySource(value = {"classpath:person.properties"}) // 指定外部文件位置
+public class AppConfig5 {
+
+    @Bean
+    public Person person() {
+        return new Person();
+    }
+
+}
+
+public class Person {
+
+	/**
+	 *   普通的方式
+	 */
+	@Value("wlz")
+	private String name;
+
+	/**
+	 *  spel 方式
+	 */
+	@Value("#{28-8}")
+	private Integer age;
+
+	/**
+	 *  读取外部配置文件的方式
+	 */
+	@Value("${person.lastName}")
+	private String lastName;
+
+
+	@Override
+	public String toString() {
+		return "Person{" +
+				"name='" + name + '\'' +
+				", age=" + age +
+				", lastName='" + lastName + '\'' +
+				'}';
+	}
+}
+```
 
 #### bean的依赖注入
 
