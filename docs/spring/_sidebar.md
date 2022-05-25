@@ -2,6 +2,7 @@
   - [初识spring](spring/spring源码整体脉络介绍.md)
   - [IOC工作原理](spring/ioc工作原理.md)
   - [spring的扩展](spring/spring的扩展.md)
+  - [Spring循环依赖](spring/Spring循环依赖.md)
   - [spring AOP](spring/spring-aop.md)
   - [spring事务](spring/spring事务.md)
   - [Spring MVC](spring/spring-mvc.md)
