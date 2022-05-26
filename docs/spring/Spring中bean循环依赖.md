@@ -404,7 +404,16 @@ if(二级缓存有说明是循环依赖？) {
 ### 4. 为什么Spring 不能解决构造器的循环依赖？ （其实可以解决，在属性上加@Lazy 懒加载就可以）
 
    从流程图应该不难看出来，在Bean调用构造器实例化之前，一二三级缓存并没有Bean的任何相关信息，在 实例化之后才放入三级缓存中，因此当getBean的时候缓存并没有命中，这样就抛出了循环依赖的异常了。
-   
+
+####  4.1 构造器注入如何解决循环依赖？
+
+利用@Lazy，会获取到代理对象完成注入
+```
+DefaultListableBeanFactory#resolveDependency
+>ContextAnnotationAutowireCandidateResolver#buildLazyResolutionProxy
+```
+
+
 ### 5. 为什么多例Bean不能解决循环依赖?
 
    循环依赖的核心是利用一个map，来解决这个问题的，这个map就相当于缓存。 为什么可以这么做，因为我们的bean是单例的，
