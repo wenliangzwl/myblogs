@@ -1109,11 +1109,15 @@ public List<Advisor> buildAspectJAdvisors() {
     org.springframework.beans.factory.config.BeanPostProcessor#postProcessAfterInitialization
     org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator#postProcessAfterInitialization
 
+![aop创建动态代理进入beanFactory流程图](spring.assets/aop创建动态代理进入beanFactory流程图.png)
+
 ###### 1. AOP创建动态代理详细流程图：
 
   https://www.processon.com/apps/5f02929e7d9c0844204bcb59
 
 ###### 2. 获取advisor  
+
+![aop创建动态代理之获取advisor](spring.assets/aop创建动态代理之获取advisor.png)
 
   创建代理之前首先要判断当前bean是否满足被代理， 所以需要将advisor从之前的缓存中拿出来和当前bean 根据表达式进行匹配:
 
@@ -1127,6 +1131,8 @@ public List<Advisor> buildAspectJAdvisors() {
 
 ###### 3. 匹配 
 
+![aop创建动态代理之匹配符合条件的类](spring.assets/aop创建动态代理之匹配符合条件的类.png)
+
   根据advisors和当前的bean根据切点表达式进行匹配，看是否符合。
 
     org.springframework.aop.framework.autoproxy.AbstractAdvisorAutoProxyCreator#findAdvisorsThatCanApply
@@ -1139,10 +1145,14 @@ public List<Advisor> buildAspectJAdvisors() {
 
   找到了 和当前Bean匹配的advisor说明满足创建动态代理的条件:
 
+![aop创建动态代理之创建代理流程图](spring.assets/aop创建动态代理之创建代理流程图.png)
+
 ```
 Object proxy = createProxy(
 					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
 ```
+
+![aop创建动态代理之createAopProxy流程图](spring.assets/aop创建动态代理之createAopProxy流程图.png)
 
 #### 4.3 代理类的调用
 
@@ -1374,95 +1384,7 @@ public class AspectJAroundAdvice extends AbstractAspectJAdvice implements Method
 }
 ```
 
-### 111 
 
-源码分析： https://www.processon.com/view/link/5d1af6f0e4b0e96e79bb528e
-
-核心接口&类
-
-```
-AopProxyFactory    //AOP代理工厂
-AopProxy           //AOP代理  getProxy获取到代理对象     
-AbstractAutoProxyCreator  // 代理对象的抽象后置处理器
-    
-```
-
-在bean的initializeBean方法的applyBeanPostProcessorsAfterInitialization中调用
-
-```
-AbstractAutowireCapableBeanFactory#initializeBean(String, Object, RootBeanDefinition)
->
-AbstractAutowireCapableBeanFactory#applyBeanPostProcessorsAfterInitialization
->
-AbstractAutoProxyCreator#postProcessAfterInitialization
-> 
-AbstractAutoProxyCreator#wrapIfNecessary
-> 
-//创建代理对象
-Object proxy = createProxy(
-bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
-```
-
-
-
-通过AopProxyFactory获取AopProxy 
-
-```
-ProxyCreatorSupport#createAopProxy
->DefaultAopProxyFactory#createAopProxy
-
-// JDK动态代理和Cglib的选择
-if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
-	Class<?> targetClass = config.getTargetClass();
-	if (targetClass == null) {
-		throw new AopConfigException("TargetSource cannot determine target class: 				" +"Either an interface or a target is required for proxy creation.");
-	}
-	if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
-		return new JdkDynamicAopProxy(config);
-	}
-	return new ObjenesisCglibAopProxy(config);
-}
-else {
-	return new JdkDynamicAopProxy(config);
-}
-```
-
-![image-20200611142401776](spring.assets/image-20200611142401776.png)
-
-
-
-##### JDK dynamic proxy
-
-在Proxy这个类当中首先实例化一个对象ProxyClassFactory,然后在get方法中调用了apply方法,完成对代理类的创建
-
-```
-JdkDynamicAopProxy#getProxy(java.lang.ClassLoader)
-> Proxy#newProxyInstance
-> Proxy#getProxyClass0
-proxyClassCache = new WeakCache<>(new KeyFactory(), new ProxyClassFactory());
-
->ProxyClassFactory#apply
-
-// generateProxyClass: 通过反射收集字段和属性然后生成字节码
-byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
-                proxyName, interfaces, accessFlags);
-// defineClass0:  jvm内部完成对上述字节码的load
-return defineClass0(loader, proxyName,
-      proxyClassFile, 0, proxyClassFile.length);
-```
-
-
-
-##### CGLIB proxy
-
-cglib封装了ASM这个开源框架,对字节码操作,完成对代理类的创建。主要通过集成目标对象,然后完成重写,再操作字节码。
-
-```
-org.springframework.aop.framework.CglibAopProxy#getProxy(java.lang.ClassLoader)
-```
-
-
-
-总结:
+### 5. 总结:
 
  cglib是通过继承来操作子类的字节码生成代理类,JDK是通过接口,然后利用java反射完成对类的动态创建，严格意义上来说cglib的效率高于JDK的反射,但是这种效率取决于代码功力,其实可以忽略不计
