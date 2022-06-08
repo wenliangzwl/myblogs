@@ -852,6 +852,8 @@ abstract class TransactionAttributeSourcePointcut extends StaticMethodMatcherPoi
 
 #### 3.2 解析 Advisor 
 
+https://www.processon.com/apps/5f042a67f346fb1ae597a9e0
+
   在Spring AOP中有过过介绍 (在第一次调用bean 的后置处理器时)，解析事务advisor详细代码:
   org.springframework.aop.framework.autoproxy.BeanFactoryAdvisorRetrievalHelper#findAdvisorBeans
 
@@ -925,6 +927,8 @@ public class BeanFactoryAdvisorRetrievalHelper {
 ##### 3.2.2 显式的调用 getBean 方法创建 BeanFactoryTransactionAttributeSourceAdvisor 返回去 
 
 #### 3.3 创建动态代理
+
+https://www.processon.com/apps/5f042a67f346fb1ae597a9e0
 
   在Spring AOP  中有过介绍， 区别在于匹配方式不同: 
 
@@ -1356,6 +1360,8 @@ public abstract class AnnotatedElementUtils {
 
 
 #### 3.4 调用代理对象 
+
+https://www.processon.com/apps/5f042a67f346fb1ae597a9e0
 
   调用开始和AOP是一样的，这里省略之前的代码:
 
