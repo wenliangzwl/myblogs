@@ -5,15 +5,25 @@
 WEB-INF/web.xml
 
 ```xml
-<servlet>
-    <servlet-name>servlet</servlet-name>
-    <servlet-class>bat.ke.qq.com.HelloServlet</servlet-class>
-</servlet>
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+         id="WebApp_ID" version="3.0" metadata-complete="true">
 
-<servlet-mapping>
+  <display-name>mvc</display-name>
+
+  <servlet>
+    <servlet-name>servlet</servlet-name>
+    <servlet-class>com.wlz.HelloServlet</servlet-class>
+  </servlet>
+
+  <servlet-mapping>
     <servlet-name>servlet</servlet-name>
     <url-pattern>/hello</url-pattern>
-</servlet-mapping>
+  </servlet-mapping>
+
+</web-app>
 ```
 
 ```java
@@ -50,19 +60,13 @@ Spring Web MVC是基于Servlet API构建的原始Web框架，从一开始就包�
 
 #### 2.1 Spring MVC 组件介绍
 
-##### DispatchServlet
-
-前端控制器 
+##### 2.1.1 DispatchServlet  前端控制器
 
 请求处理逻辑： DispatcherServlet#doDispatch  
 
 ![image-20200617214509302](springMVC.assets/image-20200617214509302.png)
 
-
-
-##### HandlerMapping    
-
-处理器映射
+##### 2.1.2 HandlerMapping 处理器映射
 
 其为mvc 中url路径与Controller对象的映射，DispatcherServlet 就是基于此组件来寻找对应的Control，如果找不到就会报Not Found mapping 的异常。
 
@@ -78,9 +82,8 @@ RequestMappingHandlerMapping  //基于@RequestMapping注解配置对应的映射
 
 ![image-20200617214751787](springMVC.assets/image-20200617214751787.png)
 
-##### HandlerAdapter   
+##### 2.1.3 HandlerAdapter    处理器适配器
 
-处理器适配器
 
 Springmvc 采用适配器模式来适配调用指定Handler，根据Handler的不同种类采用不同的Adapter,其Handler与 HandlerAdapter 对应关系如下:
 
@@ -93,9 +96,7 @@ Springmvc 采用适配器模式来适配调用指定Handler，根据Handler的�
 
 ![image-20200617214934977](springMVC.assets/image-20200617214934977.png)
 
-##### HandlerExecutionChain
-
-处理器执行链（handler  interceptors）
+##### 2.1.4 HandlerExecutionChain 处理器执行链 handler  interceptors）
 
 ```java
 private final Object handler;
@@ -106,11 +107,7 @@ private List<HandlerInterceptor> interceptorList;
 
 ```
 
-
-
-##### ViewResolver 
-
-视图解析器
+##### 2.1.5  ViewResolver 视图解析器
 
 找到应的Adapter 之后就会基于适配器调用业务处理，处理完之后业务方会返回一个ModelAndView ，在去查找对应的视图进行处理。
 
@@ -120,11 +117,7 @@ private List<HandlerInterceptor> interceptorList;
 View resolveViewName(String viewName, Locale locale) throws Exception;
 ```
 
-
-
-##### View
-
-具体解析视图
+##### 2.1.6 View  视图
 
 基于ViewResolver**.**resolveViewName() 获取对应View来解析生成Html并返回
 
@@ -132,21 +125,13 @@ View resolveViewName(String viewName, Locale locale) throws Exception;
 void render(@Nullable Map<String, ?> model, HttpServletRequest request, HttpServletResponse response) throws Exception;
 ```
 
-
-
-##### HandlerExceptionResolver 
-
-处理器异常解析器
+##### 2.1.7 HandlerExceptionResolver 处理器异常解析器
 
 该组件用于指示当出现异常时 Spring mvc 该如何处理。
 
 DispatcherServlet 会调用DispatcherServlet#processHandlerException() 方法，遍历 handlerExceptionResolvers 处理异常，处理完成之后返回errorView 跳转到异常视图。
 
-
-
-##### HandlerInterceptor  
-
-处理器拦截器
+##### 2.1.8 HandlerInterceptor  处理器拦截器
 
 其实现机制是基于 HandlerExecutionChain 分别在 doDispatch 方法中执行以下方法：
 
@@ -156,15 +141,13 @@ DispatcherServlet 会调用DispatcherServlet#processHandlerException() 方法，
 
 - afterCompletion：视图处理后
 
-
-
 在org/springframework/web/servlet/DispatcherServlet.properties文件中配置了mvc默认的相关组件
 
 示例： 
 
 ```xml
 <!--控制器-->
-<bean id="simpleConroller" class="bat.ke.qq.com.controller.SimpleController"/>
+<bean id="simpleConroller" class="com.wlz.controller.SimpleController"/>
 
 <!-- url映射器-->
 <bean class="org.springframework.web.servlet.handler.SimpleUrlHandlerMapping">
@@ -188,12 +171,11 @@ DispatcherServlet 会调用DispatcherServlet#processHandlerException() 方法，
 
 
 <!--拦截器-->
-<bean id="myHandlerInterceptor" class="bat.ke.qq.com.controller.MyHandlerInterceptor"/>
+<bean id="myHandlerInterceptor" class="com.wlz.controller.MyHandlerInterceptor"/>
 
 
 <!--异常处理-->
 <bean class="bat.ke.qq.com.controller.MyHandlerException"/>
-
 
 ```
 
@@ -209,8 +191,6 @@ public class SimpleController implements Controller {
         return mv;
     }
 ```
-
-
 
 #### 2.2 执行流程
 
