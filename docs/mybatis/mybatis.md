@@ -1,4 +1,4 @@
-### 传统 JDBC 的弊端
+### 1. 传统 JDBC 的弊端
     
    1、jdbc 底层没有用连接池、操作数据库需要频繁的创建和关联链接。消耗很大的资源
    
@@ -160,7 +160,7 @@ public class DbUtil {
  
 
 
-### ORM框架Mybatis介绍
+### 2. ORM框架Mybatis介绍
  
    MyBatis is a first class persistence framework with support for custom SQL, stored procedures and advanced mappings. MyBatis eliminates almost all of the JDBC
     code and manual setting of parameters and retrieval of results. MyBatis can use simple XML or Annotations for configuration and map primitives, 
@@ -169,7 +169,11 @@ public class DbUtil {
    MyBatis 是一款优秀的持久层框架，它支持定制化 SQL、存储过程以及高级映射。MyBatis 避免了几乎所有的 JDBC 代码和手动设置参数以及获取结果集。
    MyBatis 可以使用简单的 XML 或注解来配置和映射原生类型、接口和 Java 的 POJO（Plain Old Java Objects，普通老式 Java 对象）为数据库中的记录。
 
-### Mybatis快速开始
+#### 2.1 mybatis 整体体系图
+
+![mybatis整体体系图](mybatis.assets/mybatis整体体系图.png)
+
+### 3. Mybatis快速开始
 
   主程序入口
 ```
@@ -179,7 +183,7 @@ public class MybatisMain {
     InputStream inputStream = Resources.getResourceAsStream(resource);
     SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
     SqlSession session = sqlSessionFactory.openSession();
-    Blog blog = session.selectOne("org.mybatis.example.BlogMapper.selectBlog", 1);
+    Blog blog = session.selectOne("com.wlz.mapper.BlogMapper.selectBlog", 1);
     System.out.println(blog);
   }
 }
@@ -220,7 +224,7 @@ public class MybatisMain {
 <!DOCTYPE mapper
   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.mybatis.example.BlogMapper">
+<mapper namespace="com.wlz.mapper.BlogMapper">
 
   <select  id="selectBlog"   resultType="com.wlz.pojo.Blog">
     select * from blog where id = #{id}
