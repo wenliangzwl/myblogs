@@ -1,14 +1,17 @@
-### redis 是什么?
+### 1. redis 是什么?
    
    是完全开源免费的，用c语言编写的，是一个单线程，高性能的（key/value）内存数据库，基于内存运行并支持持久化的nosql数据库
    
-### redis 能干嘛？
+### 2. redis 能干嘛？
    
    主要是用来做缓存，但不仅仅只能做缓存，比如：redis的计数器生成分布式唯一主键，redis实现分布式锁，队列，会话缓存。
 
 ### redis 为什么这么快
    
    ![](redis.assets/redis.png)
+  
+   因为它所有的数据都在内存中，所有的运算都是内存级别的运算，而且单线程避免了多线了得切换性能损耗问题，正因为redis 是单线程，所以要小心
+   使用redis 指令，对于那些耗时的指令(比如keys)， 一定要谨慎使用，一不小心就可能导致redis 卡顿。
 
 #### 基于内存实现
    
@@ -164,6 +167,10 @@
    
    这张图里，接收到用户的请求后，全部推送到一个队列里，然后交给文件事件分派器，而它是单线程的工作方式。Redis 又是基于它工作的，所以说 Redis 是单线程的。
 
+   redis 的单线程主要是指redis 的网络IO 和键值对读写是由一个线程来完成的，这也是redis 对外提供键值存储服务的主要流程. 但redis 的其他功能，比如持久化，异步删除，集群数据同步等，其实是由额外的线程执行的。 
+
+   
+
 ### redis数据类型及api操作
    
    http://redisdoc.com
@@ -183,6 +190,51 @@
    ttl key 查看还有多少时间过期   -1表示永不过期  -2表示已过期
    
    type key  查看key是什么类型
+
+#### scan 
+
+```
+SCAN cursor [MATCH pattern] [COUNT count] 
+```
+
+  scan 参数提供了三个参数，第一个是cursor 整数值(hash桶的索引值)， 第二个是key 的正则模式, 第三个是一次遍历的key 的数量(参考值，底层遍历的数量不一定), 
+  并不是符合条件的结果数量。 第一次遍历时，cursor 值为0，然后将返回结果中第一个整数值作为下一次遍历的cursor。 一直遍历到返回的cusor 值为0 时结束。 
+
+  注意: scan 并非完美， 如果在scan 的过程中如果有键的变化(增加、删除、修改)， 那么遍历效果可能会碰到如下问题: 新增的键可能没有遍历到，遍历出重复的键等情况，
+  也就是说scan 并不能保证完整的遍历出来所以的键，这些是我们开发时需要考虑的 
+
+```
+scan 0 match key99* count 1000 
+1）"13976"
+2） 1）"key9911"
+    2）"key9911"
+    3）"key9911"
+    4）"key9911"
+
+scan 13976 match key99* count 1000 
+1）"1996"
+2） 1）"key9911"
+    2）"key9911"
+    3）"key9911"
+    4）"key9911"
+
+ 
+scan 1996 match key99* count 1000 
+1）"11687"
+2） 1）"key9911"
+    2）"key9911"
+    3）"key9911"
+    4）"key9911"
+
+
+scan 11687 match key99* count 1000 
+1）"0"
+2） 1）"key9911"
+    2）"key9911"
+    3）"key9911"
+    4）"key9911"
+
+```
    
 #### 1.string
    
@@ -204,7 +256,7 @@
    
    以下几个命令只有在key值为数字的时候才能正常操作
         
-      incr  key  为执定key的值加一
+      incr  key  为指定key的值加一
       decr  key  为指定key的值减一
       incrby key  数值     为指定key的值增加数值
       decrby key  数值     为指定key的值减数值
@@ -224,6 +276,12 @@
    msetnx   key1   value  key2   value   同时设置一个或多个 key-value 对，当且仅当所有给定 key 都不存在。
    
    getset   key    value  将给定 key 的值设为 value ，并返回 key 的旧值(old value)。
+
+##### 应用场景 
+
+![redis-string应用场景1](redis.assets/redis-string应用场景1.png)
+
+![redis-string应用场景2](redis.assets/redis-string应用场景2.png)
    
 #### 2.list
    
@@ -259,6 +317,12 @@
    
    ltrim key  start(从哪里开始截)  end（结束位置） 截取指定索引区间的元素，格式是ltrim list的key 起始索引 结束索引
    
+##### list 应用场景 
+
+![redis-list应用场景1](redis.assets/redis-list应用场景1.png)
+
+![redis-list应用场景2](redis.assets/redis-list应用场景2.png)
+
 #### 3.set
    
    Redis的Set是string类型的无序，不能重复的集合。
@@ -284,6 +348,16 @@
    sinter key1 key2  在第一个set和第二个set中都有的 （交集）
    
    sunion key1 key2  两个集合所有元素（并集）
+
+![redis-set应用场景1](redis.assets/redis-set应用场景1.png)
+
+![redis-set应用场景2](redis.assets/redis-set应用场景2.png)
+
+![redis-set应用场景3](redis.assets/redis-set应用场景3.png)
+
+![redis-set应用场景4](redis.assets/redis-set应用场景4.png)
+
+![redis-set应用场景5](redis.assets/redis-set应用场景5.png)
    
 #### 4.hash
    
@@ -320,7 +394,26 @@
    hincrdyfloat key key1  数量（浮点数，小数）  执定hash表中某个字段加  数量  ，和incr一个意思
    
    hsetnx key key1 value1  与hset作用一样，区别是不存在赋值，存在了无效。
+
+##### hash 结构优缺点
+
+ 优点: 
+
+    1） 同类数据归档整合存储，方便数据管理 
+    2） 相比string 操作消耗内存与cpu 更新 
+    3） 相比string 存储更节省空间 
+
+ 缺点: 
+
+    1) 过期功能不能使用在field 上，只能用在key 上 
+    2）redis 集群架构下不适合大规模使用 
    
+##### hash 应用场景 
+
+![redis-hash应用场景2](redis.assets/redis-hash应用场景2.png)
+
+![redis-hash应用场景2](redis.assets/redis-hash应用场景2.png)
+
 #### 5.zset
    
    Redis zset 和 set 一样也是string类型元素的集合,且不允许重复的成员。
@@ -346,6 +439,10 @@
    zrank key vlaue   获取value在zset中的下标位置(根据score排序)
    
    zscore key value  按照值获得对应的分数
+
+##### zset 应用场景 
+
+![redis-zset应用场景1](redis.assets/redis-zset应用场景1.png)
    
 ### redis事务
    
@@ -490,6 +587,23 @@
    
    everysec：表示每秒同步一次（默认值,很快，但可能会丢失一秒以内的数据）
 
+   推荐(也是默认) 使用每秒fsync 一次。  
+
+``` 配置 
+appendonly no # 是否开启aof
+appendfilename "appendonly.aof" # 文件名
+
+#磁盘同步策略 默认每秒一次  
+# appendfsync always  # 每次
+appendfsync everysec # 每秒一次
+# appendfsync no # 由操作系统执行，默认Linux配置最多丢失30秒
+
+作者：一车面包人
+链接：https://juejin.cn/post/6858901608361787400
+来源：稀土掘金
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+```
+
 ##### 3.aof重写机制
    
    为什么会出现重写？
@@ -498,7 +612,7 @@
    
    他的思想是：直接根据现在内存的数据，生成新的aof文件，然后去替换旧的aof文件，就可以把一下没用字符去掉，比如set k1 v1 ,然后我们del k1等等一些没用操作，这样我们的文件大小就会小很多
 
-##### 触发机制
+##### 4.触发机制
    
    当AOF文件增长到一定大小的时候Redis能够调用 bgrewriteaof对日志文件进行重写 。当AOF文件大小的增长率大于该配置项时自动开启重写（这里指超过原大小的100%）。
    
@@ -507,8 +621,11 @@
    当AOF文件增长到一定大小的时候Redis能够调用 bgrewriteaof对日志文件进行重写 。当AOF文件大小大于该配置项时自动开启重写
    
    auto-aof-rewrite-min-size 64mb
+
+   手动触发重写: 进入redis 客户端执行命令 bgrewriteaof 重写aof 
    
    注意：重写操作是通过fork子进程来完成的，所以正常的aof不会fork子进程，触发了重写才会
+
  
 ##### 4.redis4.0后混合持久化机制
    
@@ -554,6 +671,12 @@
    rdb 适合大规模的数据恢复，对数据完整性和一致性不高 ，  在一定间隔时间做一次备份，如果redis意外down机的话，就会丢失最后一次快照后的所有操作
    
    aof 根据配置项而定，如果是默认配置，不会丢失超过两秒的数据
+
+##### rdb 和 aof 选用哪个
+
+![rdb-aof](redis.assets/rdb-aof.png
+
+  生产环境可以都启用，redis 启动时如果即有rdb 文件又有 aof 文件，则优先选择aof 文件回复数据，因为aof 一般来说数据更全一些。
    
 ##### 性能建议（这里只针对单机版redis持久化做性能建议）：
    
@@ -561,6 +684,17 @@
    
    重写：只要硬盘许可，应该尽量减少AOF rewrite的频率，AOF重写的基础大小默认值64M太小了，可以设到5G以上。默认超过原大小100%大小时重写可以改到适当的数值。
    
+
+##### redis 数据备份策略 
+
+  1. 写crontab 定时调度脚本，每小时都copy 一份rdb 或aof 的备份到一个目录中去，仅仅保留最近48小时得备份
+
+  2. 每天都保留一份当日的数据备份到一个目录中去，可以保留最近一个月的备份
+
+  3. 每次copy 备份的时候，都把太旧的备份删除了 
+
+  4. 每天晚上将当前机器上的备份赋值一份到其他机器上，以防机器损坏 
+
 ### redis.conf 配置详解 
    
    bind 127.0.0.1 (只能本机连接)

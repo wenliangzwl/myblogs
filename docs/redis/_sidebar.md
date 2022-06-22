@@ -1,4 +1,5 @@
 - Redis
   - [redis](redis/redis.md)
-  - [redis 扩展](redis/redis扩展.md)
+  - [rredis高可用架构](redis/redis高可用架构.md)
+  - [redis缓存设计与性能优化](redis/redis缓存设计与性能优化.md)
 - [首页](README.md)

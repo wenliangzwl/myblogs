@@ -1,6 +1,823 @@
-### Spring Boot整合第三方框架实战
+### 1. 自动配置实现原理
 
-#### 整合jdbc
+Spring Boot 自动配置，顾名思义，是希望能够自动配置，将我们从配置的苦海中解脱出来。那么既然要自动配置，它需要解三个问题：
+
+- 创建哪些 **Bean** :  配置类  @Configuation
+- 满足什么样的**条件**： 条件注解
+- 创建 Bean的**属性**：配置属性
+
+比如负责创建内嵌的 Tomcat、Jetty 等等 Web 服务器的配置类EmbeddedWebServerFactoryCustomizerAutoConfiguration。
+
+```java
+@Configuration     //配置类
+@ConditionalOnWebApplication   //条件注解,表示当前配置类需要在当前项目是 Web 项目的条件下才能生效。
+@EnableConfigurationProperties(ServerProperties.class)    // 配置属性
+public class EmbeddedWebServerFactoryCustomizerAutoConfiguration{
+    @Configuration
+    @ConditionalOnClass({ Tomcat.class, UpgradeProtocol.class })  //  条件注解,表示当前配置类需要在当前项目有指定类的条件下才能生效
+    public static class TomcatWebServerFactoryCustomizerConfiguration {
+    
+       @Bean
+       public TomcatWebServerFactoryCustomizer tomcatWebServerFactoryCustomizer(
+             Environment environment, ServerProperties serverProperties) {
+          return new TomcatWebServerFactoryCustomizer(environment, serverProperties);
+       }    
+    }
+}
+```
+
+#### 1.1 配置类
+
+##### 1.1.1 @Configuration
+
+在 Spring3.0 开始，Spring 提供了 JavaConfiguartion 的方式，允许我们使用 Java 代码的方式，进行 Spring Bean 的创建。
+
+```java
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public ConfigurableServletWebServerFactory webServerFactory() {
+        TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory();
+        factory.setPort(10000);
+        return factory;
+    }
+}
+```
+
+##### 1.1.2 自动配置类
+
+Spring Boot 的 spring-boot-autoconfigure 项目，提供了大量框架的自动配置类。
+
+![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
+
+​	通过 SpringApplication#run(Class<?> primarySource, String... args) 方法，启动 Spring Boot 应用的时候，有个非常重要的组件 SpringFactoriesLoader 类，会读取 META-INF 目录下的 spring.factories 文件，获得每个框架定义的需要自动配置的配置类。**所以自动配置只是 Spring Boot 基于spring.factories的一个拓展点 EnableAutoConfiguration。**
+
+![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard-1592807215767.png)
+
+因为 spring-boot-autoconfigure 项目提供的是它选择的主流框架的自动配置，所以其它框架需要自己实现。例如，Dubbo 通过 dubbo-spring-boot-project 项目，提供 Dubbo 的自动配置。如下图所示：
+
+![image-20200622142902788](SpringBoot自动配置实战及其原理剖析.assets/image-20200622142902788.png)
+
+##### 1.1.3 Spring SPI机制
+
+​	SPI 全称为 Service Provider Interface，是一种服务发现机制。SPI 的本质是将接口实现类的全限定名配置在文件中，并由服务加载器读取配置文件，加载实现类。这样可以在运行时，动态为接口替换实现类。正因此特性，我们可以很容易的通过 SPI 机制为我们的程序提供拓展功能。SPI 机制在第三方框架中也有所应用，比如 Dubbo 就是通过 SPI 机制加载所有的组件。
+
+​	在springboot的自动装配过程中，最终会加载META-INF/spring.factories文件，而加载的过程是由**SpringFactoriesLoader**加载的。从CLASSPATH下的每个Jar包中搜寻所有META-INF/spring.factories配置文件，然后将解析properties文件，找到指定名称的配置后返回。
+
+```markdown
+org.springframework.core.io.support.SpringFactoriesLoader#loadFactoryNames
+```
+
+#### 1.2 条件注解
+
+在 Spring3.1 版本时，为了满足不同环境注册不同的 Bean ，引入了 @Profile 注解。切换环境只需启动时配置虚拟机参数 **-Dspring.profiles.active**
+
+```java
+@Configuration
+public class DataSourceConfiguration {
+
+    @Bean
+    @Profile("dev")
+    public DataSource devDataSource() {
+        // TODO 
+    }
+
+    @Bean
+    @Profile("prod")
+    public DataSource prodDataSource() {
+        // TODO
+    }
+}
+```
+
+在 Spring4 版本时，提供了 @Conditional 注解，用于声明在配置类或者创建 Bean 的方法上，表示需要满足指定条件才能生效
+
+```java
+@Configuration
+public class AppConfig {
+  @Bean
+  public Cat cat(){
+     return new Cat();
+  }
+  
+  
+  @Bean
+  @Conditional(value = MyConditional.class)
+  public Fox fox(){
+     return new Fox()
+  }
+}
+
+
+public class MyConditional implements Condition {
+   @Override
+   public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+      if(context.getBeanFactory().containsBean("cat"))
+         return true;
+      return false;
+   }
+}
+```
+
+Spring Boot 进一步增强，提供了常用的条件注解：
+
+- @ConditionalOnNotWebApplication：当前项目不是 Web 项目的条件下
+- @ConditionalOnWebApplication：当前项目是 Web项目的条件下
+
+- @ConditionalOnBean：当容器里有指定 Bean 的条件下
+
+- @ConditionalOnMissingBean：当容器里没有指定 Bean 的情况下
+- @ConditionalOnSingleCandidate：当指定 Bean 在容器中只有一个，或者虽然有多个但是指定首选 Bean
+- @ConditionalOnClass：当类路径下有指定类的条件下
+- @ConditionalOnMissingClass：当类路径下没有指定类的条件下
+- @ConditionalOnProperty：指定的属性是否有指定的值
+- @ConditionalOnResource：类路径是否有指定的值
+- @ConditionalOnExpression：基于 SpEL 表达式作为判断条件
+- @ConditionalOnJava：基于 Java 版本作为判断条件
+- @ConditionalOnJndi：在 JNDI 存在的条件下差在指定的位置
+
+#### 1.3 配置属性
+
+使用 @EnableConfigurationProperties 注解，让 ServerProperties 配置属性类生效
+
+```markdown
+@EnableConfigurationProperties(ServerProperties.class)
+```
+
+通过 @ConfigurationProperties 注解，声明将 server 前缀的配置项，设置ServerProperties 配置属性类中
+
+```java
+@ConfigurationProperties(prefix = "server", ignoreUnknownFields = true)
+public class ServerProperties {
+
+   /**
+    * Server HTTP port.
+    */
+   private Integer port;
+
+   /**
+    * Network address to which the server should bind.
+    */
+   private InetAddress address;
+```
+
+Spring Boot 约定读取 application.yaml、application.properties 等配置文件，从而实现创建 Bean 的自定义属性配置，甚至可以搭配 @ConditionalOnProperty 注解来取消 Bean 的创建。
+
+```markdown
+org.springframework.boot.env.PropertySourceLoader
+org.springframework.boot.env.PropertiesPropertySourceLoader
+org.springframework.boot.env.YamlPropertySourceLoader
+```
+
+#### 1.4 Starter依赖
+
+##### 1.4.1 内置 Starter
+
+我们在使用 Spring Boot 时，并不会直接引入 [spring-boot-autoconfigure](https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-autoconfigure) 依赖，而是使用 Spring Boot 内置提供的 Starter 依赖。
+
+例如，我们想要使用 SpringMVC 时，引入的是 spring-boot-starter-web 依赖。这是为什么呢？
+
+因为 Spring Boot 提供的自动配置类，基本都有 @ConditionalOnClass 条件注解，判断我们项目中存在指定的类，才会创建对应的 Bean。而拥有指定类的前提，一般是需要我们引入对应框架的依赖。因此，在我们引入 spring-boot-starter-web 依赖时，它会帮我们自动引入相关依赖，从而保证自动配置类能够生效，创建对应的 Bean。
+
+```markdown
+org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration
+```
+
+![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard-1592814316370.png)
+
+##### 1.4.2 自定义Starter
+
+1.引入依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-autoconfigure</artifactId>
+</dependency>
+
+<!-- Spring Boot 配置处理器 -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-configuration-processor</artifactId>
+</dependency>
+```
+
+2.实现自动配置类 WlzServerAutoConfiguration
+
+```java
+@Configuration
+@ConditionalOnClass(WlzServer.class)
+@EnableConfigurationProperties(WlzServerProperties.class)
+public class WlzServerAutoConfiguration {
+
+   @Autowired
+   private WlzServerProperties properties;
+
+   @Bean
+   @ConditionalOnClass(HttpServer.class)
+   @ConditionalOnProperty(prefix = "wlz.server", value = "enabled",havingValue = "true")
+   WlzServer wlzServer (){
+      return new WlzServer(properties.getPort());
+   }
+
+}
+
+
+@ConfigurationProperties(prefix = "wlz.server")
+public class WlzServerProperties {
+
+
+   private Integer port = 8000;
+
+   public Integer getPort() {
+      return port;
+   }
+
+   public void setPort(Integer port) {
+      this.port = port;
+   }
+}
+
+public class WlzServer {
+
+
+   private Integer port;
+
+   public WlzServer(Integer port) {
+      this.port = port;
+   }
+
+   public HttpServer create()  throws IOException{
+      HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+      server.start();
+      System.out.println("启动服务器成功，端口为:"+port);
+      return server;
+
+   }
+}
+```
+
+3.创建**spring.factories**文件
+
+​		在 resources 目录下创建，创建 META-INF 目录，然后在该目录下创建 spring.factories文件，添加自动化配置类为 **FoxServerAutoConfiguration**。
+
+```properties
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  bat.ke.qq.com.FoxServerAutoConfiguration
+```
+
+4. 测试
+
+application.properties中配置
+
+```properties
+fox.server.enabled=true
+fox.server.port=8001
+```
+
+```java
+@SpringBootApplication
+@RestController
+public class DemoApplication {
+
+   public static void main(String[] args) {
+      SpringApplication.run(DemoApplication.class, args);
+   }
+
+   @Autowired
+   private WlzServer wlzServer;
+
+
+   @RequestMapping("/")
+   public String sayHello()  {
+      try {
+         wlzServer.create();
+      } catch (IOException e) {
+         e.printStackTrace();
+      }
+      return "say hello";
+   }
+}
+```
+
+### 2. SpringBoot 自动配置原理源码分析
+
+自动配置 @SpringBootApplication：
+
+![](SpringBoot自动配置实战及其原理剖析.assets/springbootApplication.png)
+![](SpringBoot自动配置实战及其原理剖析.assets/springbootApplication.png)
+
+自动配置如何注册AutoConfiguration：
+
+![](SpringBoot自动配置实战及其原理剖析.assets/autoconfiguration.png)
+
+**@SpringBootApplication**
+
+![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
+
+**@Inherited**
+
+JAVA自带的注解，使用此注解声明出来的自定义注解，在使用此自定义注解时，如果注解在类上面时，子类会自动继承此注解，否则的话，子类不会继承此注解。
+
+**@SpringBootConfiguration**
+
+Spring自定义注解，标记这是一个 Spring Boot 配置类
+
+![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
+
+**@ComponentScan**
+
+Spring 自定义的注解，扫描指定路径下的 Component
+
+- basePackages：指定扫描的包，basePackageClasses：指定扫描的类
+
+- useDefaultFilters：取消默认filter设置，默认Filter自动扫描包下的Component，取消相当于禁用某个扫描
+
+- @ComponentScan.Filter：指定Filter 规则，可用于excludeFilters 排除Filters ，includeFilters 包含Filters
+
+**@EnableAutoConfiguration**
+
+Spring Boot 自定义的注解，用于开启自动配置功能，是 spring-boot-autoconfigure 项目最核心的注解。
+
+![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
+
+- **@AutoConfigurationPackage** 注解，将启动类所在的package作为自动配置的package ，会向容器注册beanName为org.springframework.boot.autoconfigure.AutoConfigurationPackages的bean。
+- **@Import** 注解，可用于资源的导入
+- **AutoConfigurationImportSelector** ，导入自动配置相关的资源
+
+**AutoConfigurationImportSelector**
+```
+protected List<String> getCandidateConfigurations(AnnotationMetadata metadata,
+      AnnotationAttributes attributes) {
+ //加载指定类型 EnableAutoConfiguration 对应的，在 `META-INF/spring.factories` 里的配置类
+ // SpringFactoriesLoaderFactoryClass: org.springframework.boot.autoconfigure.EnableAutoConfiguration
+   List<String> configurations = SpringFactoriesLoader.loadFactoryNames(
+         getSpringFactoriesLoaderFactoryClass(), getBeanClassLoader());
+   Assert.notEmpty(configurations,
+         "No auto configuration classes found in META-INF/spring.factories. If you "
+               + "are using a custom packaging, make sure that file is correct.");
+   return configurations;
+}
+```
+
+```
+protected AutoConfigurationEntry getAutoConfigurationEntry(
+      AutoConfigurationMetadata autoConfigurationMetadata,
+      AnnotationMetadata annotationMetadata) {
+   //是否开启自动配置  spring.boot.enableautoconfiguration 默认开启       
+   if (!isEnabled(annotationMetadata)) {
+      return EMPTY_ENTRY;
+   }
+   // 返回@EnableAutoConfiguration 注解的属性 exclude和excludeName
+   AnnotationAttributes attributes = getAttributes(annotationMetadata);
+   List<String> configurations = getCandidateConfigurations(annotationMetadata,
+         attributes);
+   // 移除重复的配置类      
+   configurations = removeDuplicates(configurations);
+   //获得需要排除的配置类
+   //注解上的exclude和excludeName 以及 spring.autoconfigure.exclude
+   Set<String> exclusions = getExclusions(annotationMetadata, attributes);
+   checkExcludedClasses(configurations, exclusions);
+   // 从 configurations 中，移除需要排除的配置类
+   configurations.removeAll(exclusions);
+   // 根据条件（Condition），过滤掉不符合条件的配置类
+   // AutoConfigurationImportFilter   Auto Configuration Import Filters
+   configurations = filter(configurations, autoConfigurationMetadata);
+   // 触发自动配置类引入完成的事件
+   // AutoConfigurationImportListener   Auto Configuration Import Listeners
+   fireAutoConfigurationImportEvents(configurations, exclusions);
+   return new AutoConfigurationEntry(configurations, exclusions);
+}
+```  
+
+### 3. Spring Boot启动 实现原理 
+
+#### 3.1 SpringBoot 是如何通过jar包启动的
+
+  得益于SpringBoot的封装，我们可以只通过jar -jar一行命令便启动一个web项目。再也不用操心搭建tomcat等相关web 容器。 
+
+##### 3.1.1 java -jar 做了什么? 
+
+   先要弄清楚java -jar命令做了什么，在oracle官网找到了该命令的描述:
+
+       If the -jar option is specified, its argument is the name of the JAR file containing class and resource files for the application. The startup class must be indicated by the Main-Class manifest header in its source code.
+
+   翻译过来就是: 使用 -jar 参数时，后面的参数是 jar 文件名 (demo.jar)；
+   
+   该jar 文件中包含的是class 和 资源文件；
+
+   在 manifest 文件中有 Main-Class 的定义; 
+
+   Main-Class 的源码中指定整个应用的启动类 
+
+   总结: java -jar 会去找 jar 中 manifest 文件，在那里找到真正的启动类 
+
+##### 3.1.2 疑惑 
+
+   在MANIFEST.MF 文件中 有这么一行 内容: 
+
+```
+Start-Class: com.wlz.DemoApplication
+```
+
+前面的java官方文档中，只提到过Main-Class ，并没有提到Start-Class; Start-Class的值是com.wlz.DemoApplication，
+这是我们的java代码中的唯一类，也只真正的应用启动类; 所以问题就来了:理论上看，执行java -jar命令时JarLauncher类会被执行，但实际上是com.tulingxueyuan.Application被执行了，这其 中发生了什么呢?为什么要这么做呢?
+
+Java没有提供任何标准的方式来加载嵌套的jar文件(即，它们本身包含在jar中的jar文件)。
+
+##### 3.1.3 jar 包的打包插件及核心方法 
+
+Spring Boot项目的pom.xml文件中默认使用如下插件进行打包:
+
+```xml
+ <plugin>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-maven-plugin</artifactId>
+</plugin>
+```
+
+执行maven clean package之后，会生成两个文件:
+
+```
+springBoot-demo-0.0.1-SNAPSHOT.jar
+springBoot-demo-0.0.1-SNAPSHOT.jar.original
+```
+
+  spring-boot-maven-plugin 项 目 存 在 于 spring-boot-tools 目 录 中 。 spring-boot-maven-plugin 默 认 有 5 个 goals : repackage、run、start、stop、build-info。在打包的时候默认使用的是repackage。
+
+  spring-boot-maven-plugin的repackage能够将mvn package生成的软件包，再次打包为可执行的软件包，并将mvn package生成的软件包重命名为*.original。
+
+spring-boot-maven-plugin的repackage在代码层面调用了RepackageMojo的execute方法，而在该方法中又调用了 repackage方法。repackage方法代码及操作解析如下:
+
+```
+private void repackage() throws MojoExecutionException { // maven生成的jar，最终的命名将加上.original后缀
+   Artifact source = getSourceArtifact();
+   // 最终为可执行jar，即fat jar
+   File target = getTargetFile();
+   // 获取重新打包器，将maven生成的jar重新打包成可执行jar
+   Repackager repackager = getRepackager(source.getFile());
+   // 查找并过滤项目运行时依赖的jar
+   Set<Artifact> artifacts = filterDependencies(this.project.getArtifacts(),
+   getFilters(getAdditionalFilters()));
+   // 将artifacts转换成libraries
+   Libraries libraries = new ArtifactsLibraries(artifacts, this.requiresUnpack, getLog());
+   try{
+      // 获得Spring Boot启动脚本
+      LaunchScript launchScript = getLaunchScript();
+      // 执行重新打包，生成fat jar
+      repackager.repackage(target, libraries, launchScript);
+   }catch (IOException ex) {
+       throw new MojoExecutionException(ex.getMessage(), ex);
+   }
+   // 将maven生成的jar更新成.original文件
+   updateArtifact(source, target, repackager.getBackupFile());
+}
+```
+
+  执行以上命令之后，便生成了打包结果对应的两个文件。下面针对文件的内容和结构进行一探究竟。
+
+##### 3.1.4 jar 包目录结构
+
+首先来看看jar的目录结构，都包含哪些目录和文件，解压jar包可以看到如下结构:
+
+![jar包目录](SpringBoot自动配置实战及其原理剖析.assets/jar包目录.png)
+
+##### 3.1.5 META-INF 中 MANIFEST.MF 内容 
+
+```xml
+Manifest-Version: 1.0
+Implementation-Title: springBoot-demo
+Implementation-Version: 0.0.1-SNAPSHOT
+Start-Class: com.wlz.DemoApplication
+Spring-Boot-Classes: BOOT-INF/classes/
+Spring-Boot-Lib: BOOT-INF/lib/
+Build-Jdk-Spec: 1.8
+Spring-Boot-Version: 2.1.5.RELEASE
+Created-By: Maven Archiver 3.4.0
+Main-Class: org.springframework.boot.loader.JarLauncher
+```
+
+  可以看到有Main-Class是org.springframework.boot.loader.JarLauncher ，这个是jar启动的Main函数。 
+
+  还有一个Start-Class是com.wlz.DemoApplication，这个是我们应用自己的Main函数。
+
+##### 3.1.6 Archive 的概念
+
+在继续了解底层概念和原理之前，我们先来了解一下Archive的概念: 
+
+    archive即归档文件，这个概念在linux下比较常见。 
+    通常就是一个tar/zip格式的压缩包。
+    jar是zip格式。
+
+ SpringBoot 抽 象 了 Archive 的 概 念 ， 一 个 Archive 可 以 是 jar ( JarFileArchive ) ， 可 以 是 一 个 文 件 目 录 (ExplodedArchive)，可以抽象为统一访问资源的逻辑层。 
+
+ SpringBoot定义了一个接口用于描述资源，也就是org.springframework.boot.loader.archive.Archive。该接口有两个 实现，分别是org.springframework.boot.loader.archive.ExplodedArchive和 org.springframework.boot.loader.archive.JarFileArchive。前者用于在文件夹目录下寻找资源，后者用于在jar包环境 下寻找资源。而在SpringBoot打包的fatJar中，则是使用后者。
+
+  JarFile:对jar包的封装，每个JarFileArchive都会对应一个JarFile。JarFile被构造的时候会解析内部结构，去获取jar包里的 各个文件或文件夹，这些文件或文件夹会被封装到Entry中，也存储在JarFileArchive中。如果Entry是个jar，会解析成 JarFileArchive。
+
+  比如一个JarFileArchive对应的URL为:
+
+```
+jar:file:/Users/format/Develop/gitrepository/springboot‐analysis/springboot‐executable‐jar/target/exeutable‐jar‐1.0‐SNAPSHOT.jar!/
+```
+
+它对应的JarFile为: 
+
+```
+/Users/format/Develop/gitrepository/springboot‐analysis/springboot‐executable‐jar/target/exeutable‐jar‐1.0‐SNAPSHOT.jar!/
+```
+
+这个JarFile有很多Entry，比如: 
+
+```
+META-INF/
+META-INF/MANIFEST.MF
+spring/
+spring/study/
+....
+spring/study/executablejar/ExecutablejarApplication.class
+....
+```
+
+JarFileArchive内部的一些依赖jar对应的URL(SpringBoot使用org.springframework.boot.loader.jar.Handler处理器来处理这些 URL):
+
+```
+jar:file:/Users/Format/Develop/gitrepository/springboot‐analysis/springboot‐executable‐jar/target/exe utable‐jar‐1.0‐SNAPSHOT.jar!/lib/spring‐boot‐starter‐web‐1.3.5.RELEASE.jar!/
+```
+
+```
+jar:file:/Users/Format/Develop/gitrepository/springboot‐analysis/springboot‐executable‐jar/target/exe utable‐jar‐1.0‐SNAPSHOT.jar!/lib/spring‐boot‐loader‐ 1.3.5.RELEASE.jar!/org/springframework/boot/loader/JarLauncher.class
+```
+
+我们看到如果有jar包中包含jar，或者jar包中包含jar包里面的class文件，那么会使用 !/ 分隔开，这种方式只有 org.springframework.boot.loader.jar.Handler能处理，它是SpringBoot内部扩展出来的一种URL协议。
+
+##### 3.1.7 JarLauncher 
+
+从MANIFEST.MF可以看到Main函数是JarLauncher，下面来分析它的工作流程。JarLauncher类的继承结构是: 
+
+````
+
+/**
+ * {@link Launcher} for JAR based archives. This launcher assumes that dependency jars are
+ * included inside a {@code /BOOT-INF/lib} directory and that application classes are
+ * included inside a {@code /BOOT-INF/classes} directory.
+ *
+ * @author Phillip Webb
+ * @author Andy Wilkinson
+ */
+public class JarLauncher extends ExecutableArchiveLauncher {
+public abstract class ExecutableArchiveLauncher extends Launcher {
+````
+
+  按照定义，JarLauncher 可以加载内部 /BOOT-INF/lib 下的jar 以及 /BOOT-INF/classes 下的class ,其实JarLauncher实 现很简单:
+
+```java
+public class JarLauncher extends ExecutableArchiveLauncher {
+
+	static final String BOOT_INF_CLASSES = "BOOT-INF/classes/";
+
+	static final String BOOT_INF_LIB = "BOOT-INF/lib/";
+
+	public JarLauncher() {
+	}
+
+	protected JarLauncher(Archive archive) {
+		super(archive);
+	}
+
+	@Override
+	protected boolean isNestedArchive(Archive.Entry entry) {
+		if (entry.isDirectory()) {
+			return entry.getName().equals(BOOT_INF_CLASSES);
+		}
+		return entry.getName().startsWith(BOOT_INF_LIB);
+	}
+
+	public static void main(String[] args) throws Exception {
+		new JarLauncher().launch(args);
+	}
+
+}
+
+```
+
+ 其主入口新建了JarLauncher并调用父类Launcher中的launch方法启动程序。在创建JarLauncher时，父类 ExecutableArchiveLauncher找到自己所在的jar，并创建archive。 
+
+ JarLauncher继承于org.springframework.boot.loader.ExecutableArchiveLauncher。该类的无参构造方法最主要的功 能就是构建了当前main方法所在的FatJar的JarFileArchive对象。下面来看launch方法。该方法主要是做了2个事情:
+
+    (1)以FatJar为file作为入参，构造JarFileArchive对象。获取其中所有的资源目标，取得其Url，将这些URL作为参数， 构建了一个URLClassLoader。
+   
+    (2)以第一步构建的ClassLoader加载MANIFEST.MF文件中Start-Class指向的业务类，并且执行静态方法main。进而 启动整个程序。
+
+```java
+public abstract class ExecutableArchiveLauncher extends Launcher {
+
+   private final Archive archive;
+
+   public ExecutableArchiveLauncher() {
+      try {
+         this.archive = createArchive();
+      }
+      catch (Exception ex) {
+         throw new IllegalStateException(ex);
+      }
+   }
+}
+
+public abstract class Launcher {
+    
+	protected final Archive createArchive() throws Exception {
+		ProtectionDomain protectionDomain = getClass().getProtectionDomain();
+		CodeSource codeSource = protectionDomain.getCodeSource();
+		URI location = (codeSource != null) ? codeSource.getLocation().toURI() : null;
+		String path = (location != null) ? location.getSchemeSpecificPart() : null;
+		if (path == null) {
+			throw new IllegalStateException("Unable to determine code source archive");
+		}
+		File root = new File(path);
+		if (!root.exists()) {
+			throw new IllegalStateException(
+					"Unable to determine code source archive from " + root);
+		}
+		return (root.isDirectory() ? new ExplodedArchive(root)
+				: new JarFileArchive(root));
+	}
+
+}
+```
+
+在 Launcher 的 launch 方 法 中 ， 通 过 以 上 archive 的 getNestedArchives 方 法 找 到 /BOOT-INF/lib 下 所 有 jar 及 /BOOT- INF/classes目录所对应的archive，通过这些archives的url生成LaunchedURLClassLoader，并将其设置为线程上下文 类加载器，启动应用。
+
+至此，才执行我们应用程序主入口类的main方法，所有应用程序类文件均可通过/BOOT-INF/classes加载，所有依赖的 第三方jar均可通过/BOOT-INF/lib加载。
+
+##### 3.1.8 springboot 的jar 应用启动流程总结 
+
+   1. spring boot 应用打包之后，生成一个 Fat jar ,包含了应用依赖的jar 包和spring boot loader 相关的包。 
+
+   2. Fat jar 的启动Main 函数是 JarLauncher ，它负责创建一个 LauncherURLClassLoader 来加载/lib 下面的jar, 并以一个新线程启动应用的 Main 函数。
+
+##### 3.1.9 总结
+
+  JarLauncher通过加载BOOT-INF/classes目录及BOOT-INF/lib目录下jar文件，实现了fat jar的启动。
+  
+  SpringBoot通过扩展JarFile、JarURLConnection及URLStreamHandler，实现了jar in jar中资源的加载。 
+  
+  SpringBoot通过扩展URLClassLoader–LauncherURLClassLoader，实现了jar in jar中class文件的加载。 
+  
+  WarLauncher通过加载WEB-INF/classes目录及WEB-INF/lib和WEB-INF/lib-provided目录下的jar文件，实现了war文 件的直接启动及web容器中的启动。
+
+#### 3.2 SpringBoot是如何启动Spring容器源码: 
+
+##### 3.2.1 SpringBoot 事假监听器发布顺序: 
+
+  1.ApplicationStartingEvent在运行开始时发送，但在进行任何处理之前(侦听器和初始化程序的注册除外)发送。
+ 
+  2.在创建上下文之前，将发送ApplicationEnvironmentPreparedEvent。
+
+  3.准备ApplicationContext并调用ApplicationContextInitializers之后，将发送ApplicationContextInitializedEv nt。
+
+  4.读取完配置类后发送ApplicationPreparedEvent。
+
+##### 3.2.2 调用SpringApplication.run启动springboot应用 
+
+SpringApplication.run(DemoApplication.class, args); 
+
+##### 3.2.3 使用自定义SpringApplication进行启动 
+
+```
+  public static ConfigurableApplicationContext run(Class<?>[] primarySources, String[] args) {
+        return (new SpringApplication(primarySources)).run(args);
+    }
+```
+
+##### 3.2.4 创建 SpringApplication 
+
+```java
+public class SpringApplication {
+    public SpringApplication(ResourceLoader resourceLoader, Class<?>... primarySources) {
+        this.sources = new LinkedHashSet();
+        this.bannerMode = Mode.CONSOLE;
+        this.logStartupInfo = true;
+        this.addCommandLineProperties = true;
+        this.addConversionService = true;
+        this.headless = true;
+        this.registerShutdownHook = true;
+        this.additionalProfiles = new HashSet();
+        this.isCustomEnvironment = false;
+        this.resourceLoader = resourceLoader;
+        Assert.notNull(primarySources, "PrimarySources must not be null");
+        // 将启动列放入 primarySources
+        this.primarySources = new LinkedHashSet(Arrays.asList(primarySources));
+        // 根据 classpath 下的类，推算当前web 应用类型 (webFlux、servlet)
+        this.webApplicationType = WebApplicationType.deduceFromClasspath();
+        // 就是去 spring.factories 中去获取 所有key:org.springframework.context.ApplicationContextInitializer 
+        this.setInitializers(this.getSpringFactoriesInstances(ApplicationContextInitializer.class));
+        // 就是去 spring.factories 中去获取 所有key:org.springframework.context.ApplicationListener
+        this.setListeners(this.getSpringFactoriesInstances(ApplicationListener.class));
+        // 根据main 方法推算出mainApplicationClass 
+        this.mainApplicationClass = this.deduceMainApplicationClass();
+    }
+}
+```
+
+###### 总结 
+
+      1. 获取启动类
+      2.获取web应用类型
+      3.读取了对外扩展的ApplicationContextInitializer ,ApplicationListener 4. 根据main推算出所在的类
+   
+  就是去初始化了一些信息
+
+##### 3.2.5 启动 run 
+```java
+public class SpringApplication {
+   public ConfigurableApplicationContext run(String... args) {
+       // 用来记录当前springboot 启动耗时
+      StopWatch stopWatch = new StopWatch();
+      // 记录启动开始时间
+      stopWatch.start();
+      // 它是任何spring 上下文的接口，所以可以接收任何ApplicationContext 实现 
+      ConfigurableApplicationContext context = null;
+      Collection<SpringBootExceptionReporter> exceptionReporters = new ArrayList<>();
+      // 开启 headless 模式 
+      configureHeadlessProperty();
+      // 去spring.factories 中读取了 SpringApplicationRunListener 的组件，就是用来发布事件或者运行监听器 
+      SpringApplicationRunListeners listeners = getRunListeners(args);
+      // 发布1. ApplicationStartingEvent 事件 ，在运行开始时发送 
+      listeners.starting();
+      try {
+          // 根据命令行参数 实例化一个 ApplicationArguments 
+         ApplicationArguments applicationArguments = new DefaultApplicationArguments(
+                 args);
+         // 预初始化环境，读取环境变量，读取配置文件信息(基于监听器）
+         ConfigurableEnvironment environment = prepareEnvironment(listeners,
+                 applicationArguments);
+         // 忽略beaninfo 的bean 
+         configureIgnoreBeanInfo(environment);
+         // 打印 banner 横幅 
+         Banner printedBanner = printBanner(environment);
+         // 根据 webApplicationType 创建spring 上下文 
+         context = createApplicationContext();
+         exceptionReporters = getSpringFactoriesInstances(
+                 SpringBootExceptionReporter.class,
+                 new Class[]{ConfigurableApplicationContext.class}, context);
+         // 预初始化spring 上下文 
+         prepareContext(context, environment, listeners, applicationArguments,
+                 printedBanner);
+         // 加载 spring ioc 容器，由于使用 AnnotationConfigServletWebServerApplicationContext 启动的spring 容器所以springboot dui
+         // 它做了扩展:
+         // 加载自动配置类: invokeBeanFactoryPostProcessor ，创建 servlet 容器 onRefresh 
+         refreshContext(context);
+         afterRefresh(context, applicationArguments);
+         stopWatch.stop();
+         if (this.logStartupInfo) {
+            new StartupInfoLogger(this.mainApplicationClass)
+                    .logStarted(getApplicationLog(), stopWatch);
+         }
+         listeners.started(context);
+         callRunners(context, applicationArguments);
+      } catch (Throwable ex) {
+         handleRunFailure(context, ex, exceptionReporters, listeners);
+         throw new IllegalStateException(ex);
+      }
+
+      try {
+         listeners.running(context);
+      } catch (Throwable ex) {
+         handleRunFailure(context, ex, exceptionReporters, null);
+         throw new IllegalStateException(ex);
+      }
+      return context;
+   }
+}
+```
+
+###### 总结 
+
+   1. 初始化springApplication 从 spring.factories 读取 litener , ApplicationContextInializer 
+ 
+   2. 运行 run 方法。
+ 
+   3. 读取环境变量 配置信息 
+
+   4. 创建 springApplication 上下文: ServletWebServerApplicationContext 
+
+   5. 预初始化上下文: 读取启动类 
+
+   6. 调用 refresh 加载ioc 容器 
+
+   7. 在这个过程中 springboot 会调用 很多监听器对外进行监听 
+
+
+
+### 4. Spring Boot启动实现原理源码分析 
+
+![](SpringBoot自动配置实战及其原理剖析.assets/springboot启动流程.png)
+
+### 5. Spring Boot整合第三方框架实战
+
+#### 5.1 整合jdbc
 
 1. 导入的maven依赖  
 
@@ -132,9 +949,7 @@
    }
    ```
 
-   
-
-####  整合druid
+#### 5.2 整合druid
 
  引入依赖
 
@@ -258,7 +1073,7 @@ spring:
 
 ![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard-1592815300540.png)
 
-####  整合mybaits
+#### 5.3 整合mybaits
 
 引入依赖
 
@@ -323,7 +1138,7 @@ mybatis:
     mapper-locations: classpath:/mybatis/mapper/*.xml 指定配置文件的位置
 ```
 
-#### 整合redis
+#### 5.4 整合redis
 
 SpringBoot2.x默认使用的是Lettuce。
 
@@ -410,9 +1225,7 @@ SpringBoot2.x默认使用的是Lettuce。
    }
    ```
 
-   
-
-#### 整合dubbo
+#### 5.5 整合dubbo
 
 **provider端**
 
@@ -565,9 +1378,7 @@ SpringBoot2.x默认使用的是Lettuce。
    }
    ```
 
-   
-
-#### 整合actuator
+#### 5.6 整合actuator
 
 通过引入spring-boot-starter-actuator，可以使用Spring Boot为我们提供的准生产环境下的应用监控和管理功能。我们可以通过HTTP，JMX，SSH协议来进行操作，自动得到审计、健康及指标信息等
 
@@ -643,392 +1454,3 @@ actuator endpoints列表参考文档： https://docs.spring.io/spring-boot/docs/
 ![img](D:/我的文档/云笔记/chaosbead@163.com/69a85d31ca6e4a6c82f9257c012e0c76/clipboard.png)
 
 - 最新调用监控端点: http://localhost:8080/actuator/httptrace
-
-
-
-### 自动配置实现原理
-
-Spring Boot 自动配置，顾名思义，是希望能够自动配置，将我们从配置的苦海中解脱出来。那么既然要自动配置，它需要解三个问题：
-
-- 创建哪些 **Bean** :  配置类  @Configuation
-- 满足什么样的**条件**： 条件注解
-- 创建 Bean的**属性**：配置属性
-
-比如负责创建内嵌的 Tomcat、Jetty 等等 Web 服务器的配置类EmbeddedWebServerFactoryCustomizerAutoConfiguration。
-
-```java
-@Configuration     //配置类
-@ConditionalOnWebApplication   //条件注解,表示当前配置类需要在当前项目是 Web 项目的条件下才能生效。
-@EnableConfigurationProperties(ServerProperties.class)    // 配置属性
-public class EmbeddedWebServerFactoryCustomizerAutoConfiguration{
-    @Configuration
-    @ConditionalOnClass({ Tomcat.class, UpgradeProtocol.class })  //  条件注解,表示当前配置类需要在当前项目有指定类的条件下才能生效
-    public static class TomcatWebServerFactoryCustomizerConfiguration {
-    
-       @Bean
-       public TomcatWebServerFactoryCustomizer tomcatWebServerFactoryCustomizer(
-             Environment environment, ServerProperties serverProperties) {
-          return new TomcatWebServerFactoryCustomizer(environment, serverProperties);
-       }    
-    }
-}
-```
-
-#### 配置类
-
-##### @Configuration
-
-在 Spring3.0 开始，Spring 提供了 JavaConfiguartion 的方式，允许我们使用 Java 代码的方式，进行 Spring Bean 的创建。
-
-```java
-@Configuration
-public class AppConfig {
-
-    @Bean
-    public ConfigurableServletWebServerFactory webServerFactory() {
-        TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory();
-        factory.setPort(10000);
-        return factory;
-    }
-}
-```
-
-##### 自动配置类
-
-Spring Boot 的 spring-boot-autoconfigure 项目，提供了大量框架的自动配置类。
-
-![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
-
-​	通过 SpringApplication#run(Class<?> primarySource, String... args) 方法，启动 Spring Boot 应用的时候，有个非常重要的组件 SpringFactoriesLoader 类，会读取 META-INF 目录下的 spring.factories 文件，获得每个框架定义的需要自动配置的配置类。**所以自动配置只是 Spring Boot 基于spring.factories的一个拓展点 EnableAutoConfiguration。** 
-
-![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard-1592807215767.png)
-
-因为 spring-boot-autoconfigure 项目提供的是它选择的主流框架的自动配置，所以其它框架需要自己实现。例如，Dubbo 通过 dubbo-spring-boot-project 项目，提供 Dubbo 的自动配置。如下图所示：
-
-![image-20200622142902788](SpringBoot自动配置实战及其原理剖析.assets/image-20200622142902788.png)
-
-##### Spring SPI机制
-
-​	SPI 全称为 Service Provider Interface，是一种服务发现机制。SPI 的本质是将接口实现类的全限定名配置在文件中，并由服务加载器读取配置文件，加载实现类。这样可以在运行时，动态为接口替换实现类。正因此特性，我们可以很容易的通过 SPI 机制为我们的程序提供拓展功能。SPI 机制在第三方框架中也有所应用，比如 Dubbo 就是通过 SPI 机制加载所有的组件。
-
-​	在springboot的自动装配过程中，最终会加载META-INF/spring.factories文件，而加载的过程是由**SpringFactoriesLoader**加载的。从CLASSPATH下的每个Jar包中搜寻所有META-INF/spring.factories配置文件，然后将解析properties文件，找到指定名称的配置后返回。
-
-```markdown
-org.springframework.core.io.support.SpringFactoriesLoader#loadFactoryNames
-```
-
-#### 条件注解
-
-在 Spring3.1 版本时，为了满足不同环境注册不同的 Bean ，引入了 @Profile 注解。切换环境只需启动时配置虚拟机参数 **-Dspring.profiles.active**
-
-```java
-@Configuration
-public class DataSourceConfiguration {
-
-    @Bean
-    @Profile("dev")
-    public DataSource devDataSource() {
-        // TODO 
-    }
-
-    @Bean
-    @Profile("prod")
-    public DataSource prodDataSource() {
-        // TODO
-    }
-}
-```
-
-在 Spring4 版本时，提供了 @Conditional 注解，用于声明在配置类或者创建 Bean 的方法上，表示需要满足指定条件才能生效
-
-```java
-@Configuration
-public class AppConfig {
-  @Bean
-  public Cat cat(){
-     return new Cat();
-  }
-  
-  
-  @Bean
-  @Conditional(value = MyConditional.class)
-  public Fox fox(){
-     return new Fox()
-  }
-}
-
-
-public class MyConditional implements Condition {
-   @Override
-   public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-      if(context.getBeanFactory().containsBean("cat"))
-         return true;
-      return false;
-   }
-}
-```
-
-Spring Boot 进一步增强，提供了常用的条件注解：
-
-- @ConditionalOnNotWebApplication：当前项目不是 Web 项目的条件下
-- @ConditionalOnWebApplication：当前项目是 Web项目的条件下
-
-- @ConditionalOnBean：当容器里有指定 Bean 的条件下
-
-- @ConditionalOnMissingBean：当容器里没有指定 Bean 的情况下
-- @ConditionalOnSingleCandidate：当指定 Bean 在容器中只有一个，或者虽然有多个但是指定首选 Bean
-- @ConditionalOnClass：当类路径下有指定类的条件下
-- @ConditionalOnMissingClass：当类路径下没有指定类的条件下
-- @ConditionalOnProperty：指定的属性是否有指定的值
-- @ConditionalOnResource：类路径是否有指定的值
-- @ConditionalOnExpression：基于 SpEL 表达式作为判断条件
-- @ConditionalOnJava：基于 Java 版本作为判断条件
-- @ConditionalOnJndi：在 JNDI 存在的条件下差在指定的位置
-
-#### 配置属性
-
- 使用 @EnableConfigurationProperties 注解，让 ServerProperties 配置属性类生效
-
-```markdown
-@EnableConfigurationProperties(ServerProperties.class)
-```
-
-通过 @ConfigurationProperties 注解，声明将 server 前缀的配置项，设置ServerProperties 配置属性类中
-
-```java
-@ConfigurationProperties(prefix = "server", ignoreUnknownFields = true)
-public class ServerProperties {
-
-   /**
-    * Server HTTP port.
-    */
-   private Integer port;
-
-   /**
-    * Network address to which the server should bind.
-    */
-   private InetAddress address;
-```
-
-Spring Boot 约定读取 application.yaml、application.properties 等配置文件，从而实现创建 Bean 的自定义属性配置，甚至可以搭配 @ConditionalOnProperty 注解来取消 Bean 的创建。
-
-```markdown
-org.springframework.boot.env.PropertySourceLoader
-org.springframework.boot.env.PropertiesPropertySourceLoader
-org.springframework.boot.env.YamlPropertySourceLoader
-```
-
-#### Starter依赖
-
-##### 内置 Starter
-
-我们在使用 Spring Boot 时，并不会直接引入 [spring-boot-autoconfigure](https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-autoconfigure) 依赖，而是使用 Spring Boot 内置提供的 Starter 依赖。
-
-例如，我们想要使用 SpringMVC 时，引入的是 spring-boot-starter-web 依赖。这是为什么呢？
-
-因为 Spring Boot 提供的自动配置类，基本都有 @ConditionalOnClass 条件注解，判断我们项目中存在指定的类，才会创建对应的 Bean。而拥有指定类的前提，一般是需要我们引入对应框架的依赖。因此，在我们引入 spring-boot-starter-web 依赖时，它会帮我们自动引入相关依赖，从而保证自动配置类能够生效，创建对应的 Bean。
-
-```markdown
-org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration
-```
-
-##### ![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard-1592814316370.png)自定义Starter
-
-1.引入依赖
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-autoconfigure</artifactId>
-</dependency>
-
-<!-- Spring Boot 配置处理器 -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-configuration-processor</artifactId>
-</dependency>
-```
-
-2.实现自动配置类 FoxServerAutoConfiguration
-
-```java
-@Configuration
-@ConditionalOnClass(FoxServer.class)
-@EnableConfigurationProperties(FoxServerProperties.class)
-public class FoxServerAutoConfiguration {
-
-    @Autowired
-    private FoxServerProperties properties;
-
-    @Bean
-    @ConditionalOnClass(HttpServer.class)
-    @ConditionalOnProperty(prefix = "fox.server", value = "enabled",havingValue = "true")
-    FoxServer foxServer (){
-        return new FoxServer(properties.getPort());
-    }
-
-}
-
-
-@ConfigurationProperties(prefix = "fox.server")
-public class FoxServerProperties {
-
-
-    private Integer port = 8000;
-
-    public Integer getPort() {
-        return port;
-    }
-
-    public void setPort(Integer port) {
-        this.port = port;
-    }
-}
-
-public class FoxServer {
-
-    private Integer port;
-
-    public FoxServer(Integer port) {
-        this.port = port;
-    }
-
-    public HttpServer create()  throws IOException{
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-        server.start();
-        System.out.println("启动服务器成功，端口为:"+port);
-        return server;
-    }
-}
-```
-
-3.创建**spring.factories**文件
-
-​		在 resources 目录下创建，创建 META-INF 目录，然后在该目录下创建 spring.factories文件，添加自动化配置类为 **FoxServerAutoConfiguration**。
-
-```properties
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  bat.ke.qq.com.FoxServerAutoConfiguration
-```
-
-4. 测试
-
-application.properties中配置
-
-```properties
-fox.server.enabled=true
-fox.server.port=8001
-```
-
-```java
-@Autowired
-private FoxServer foxServer;
-
-@RequestMapping("/")
-public String sayHello()  {
-    try {
-        foxServer.create();
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-    return "say hello";
-}
-```
-
-### SpringBoot自动配置和启动流程源码分析
-
-#### 自动配置源码分析
-  
-  自动配置 @SpringBootApplication：
-  
-  ![](SpringBoot自动配置实战及其原理剖析.assets/springbootApplication.png)
-  ![](SpringBoot自动配置实战及其原理剖析.assets/springbootApplication.png)
-  
-  自动配置如何注册AutoConfiguration：
-  
-  ![](SpringBoot自动配置实战及其原理剖析.assets/autoconfiguration.png)
-  
- **@SpringBootApplication**
-  
-  ![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
-
- **@Inherited**
-    
-   JAVA自带的注解，使用此注解声明出来的自定义注解，在使用此自定义注解时，如果注解在类上面时，子类会自动继承此注解，否则的话，子类不会继承此注解。
-    
- **@SpringBootConfiguration**
-    
-  Spring自定义注解，标记这是一个 Spring Boot 配置类
-  
-  ![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
-  
-  **@ComponentScan**
-   
-   Spring 自定义的注解，扫描指定路径下的 Component
-   
-   - basePackages：指定扫描的包，basePackageClasses：指定扫描的类
-   
-   - useDefaultFilters：取消默认filter设置，默认Filter自动扫描包下的Component，取消相当于禁用某个扫描
-   
-   - @ComponentScan.Filter：指定Filter 规则，可用于excludeFilters 排除Filters ，includeFilters 包含Filters
-  
-  **@EnableAutoConfiguration**
-  
-   Spring Boot 自定义的注解，用于开启自动配置功能，是 spring-boot-autoconfigure 项目最核心的注解。
-   
-   ![img](SpringBoot自动配置实战及其原理剖析.assets/clipboard.png)
-   
-   - **@AutoConfigurationPackage** 注解，将启动类所在的package作为自动配置的package ，会向容器注册beanName为org.springframework.boot.autoconfigure.AutoConfigurationPackages的bean。
-   - **@Import** 注解，可用于资源的导入
-   - **AutoConfigurationImportSelector** ，导入自动配置相关的资源
-   
-  **AutoConfigurationImportSelector**
-```
-protected List<String> getCandidateConfigurations(AnnotationMetadata metadata,
-      AnnotationAttributes attributes) {
- //加载指定类型 EnableAutoConfiguration 对应的，在 `META-INF/spring.factories` 里的配置类
- // SpringFactoriesLoaderFactoryClass: org.springframework.boot.autoconfigure.EnableAutoConfiguration
-   List<String> configurations = SpringFactoriesLoader.loadFactoryNames(
-         getSpringFactoriesLoaderFactoryClass(), getBeanClassLoader());
-   Assert.notEmpty(configurations,
-         "No auto configuration classes found in META-INF/spring.factories. If you "
-               + "are using a custom packaging, make sure that file is correct.");
-   return configurations;
-}
-```
-
-```
-protected AutoConfigurationEntry getAutoConfigurationEntry(
-      AutoConfigurationMetadata autoConfigurationMetadata,
-      AnnotationMetadata annotationMetadata) {
-   //是否开启自动配置  spring.boot.enableautoconfiguration 默认开启       
-   if (!isEnabled(annotationMetadata)) {
-      return EMPTY_ENTRY;
-   }
-   // 返回@EnableAutoConfiguration 注解的属性 exclude和excludeName
-   AnnotationAttributes attributes = getAttributes(annotationMetadata);
-   List<String> configurations = getCandidateConfigurations(annotationMetadata,
-         attributes);
-   // 移除重复的配置类      
-   configurations = removeDuplicates(configurations);
-   //获得需要排除的配置类
-   //注解上的exclude和excludeName 以及 spring.autoconfigure.exclude
-   Set<String> exclusions = getExclusions(annotationMetadata, attributes);
-   checkExcludedClasses(configurations, exclusions);
-   // 从 configurations 中，移除需要排除的配置类
-   configurations.removeAll(exclusions);
-   // 根据条件（Condition），过滤掉不符合条件的配置类
-   // AutoConfigurationImportFilter   Auto Configuration Import Filters
-   configurations = filter(configurations, autoConfigurationMetadata);
-   // 触发自动配置类引入完成的事件
-   // AutoConfigurationImportListener   Auto Configuration Import Listeners
-   fireAutoConfigurationImportEvents(configurations, exclusions);
-   return new AutoConfigurationEntry(configurations, exclusions);
-}
-```  
-
-### Spring Boot启动流程图    
-    
-   ![](SpringBoot自动配置实战及其原理剖析.assets/springboot启动流程.png)
-
-
