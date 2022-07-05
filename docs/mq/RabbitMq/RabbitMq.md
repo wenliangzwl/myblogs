@@ -224,6 +224,8 @@ RabbitMQ 提供了 6 种工作模式：简单模式、work queues、Publish/Subs
 
 ### 5. 消息确认机制 
 
+#### 5.1 消息的可靠投递
+
   rabbitmq 在传递消息的过程中充当代理人(Broker) 的角色，那生产者(producer) 怎么知道消息被正确投递到 Broker 呢? 
 
   rabbitmq 提供了监听器(Listener) 来接收消息投递的状态。 
@@ -241,11 +243,154 @@ RabbitMQ 提供了 6 种工作模式：简单模式、work queues、Publish/Subs
   注意: 上面两种状态只代表 生成者 与 broker 直接消息投递的情况。 与消费者是否接收/确认消息无关。
 
 
+  rabbitmq 整个消息投递的路径为：
 
+    producer--->rabbitmq broker--->exchange--->queue--->consumer
 
+    消息从 producer 到 exchange 则会返回一个 confirmCallback 。
+  
+    消息从 exchange-->queue 投递失败则会返回一个 returnCallback 。
 
-   
+  我们将利用这两个 callback 控制消息的可靠性投递
 
-   
-   
-   
+#### 5.2 Consumer Ack
+
+   ack 指 Acknowledge ,确认. 表示消费端收到消息后的确认方式。
+
+   有三种方式: 
+
+        自动确认: acknowledge="none"
+
+        手动确认: acknowledge="manual"
+
+        根据异常情况确认: acknowledge="auto" 
+ 
+   其中自动确认是指，当消息一旦被Consumer接收到，则自动确认收到，并将相应 message 从 RabbitMQ 的消息缓存中移除。
+   但是在实际业务处理中，很可能消息接收到，业务处理出现异常，那么该消息就会丢失。如果设置了手动确认方式，则需要在业务处理成功后，
+   调用channel.basicAck()，手动签收，如果出现异常，则调用channel.basicNack()方法，让其自动重新发送消息。
+
+#### 5.3 消息可靠性总结
+
+   1. 持久化
+      
+
+        exchange 要持久化
+      
+        queue 要持久化
+      
+        message 要持久化 
+
+   2. 生产方确认confirm
+
+   3. 消费方确认ack
+
+   4. broker 高可用 
+
+### 6. 消费端限流 
+
+![rabbitmq-高级特性-消费端限流-1](RabbitMQ.assets/rabbitmq-高级特性-消费端限流-1.png)
+
+  在<rabbit:listener-container> 中配置 prefetch属性设置消费端一次拉取多少消息
+
+  消费端的确认模式一定为手动确认。acknowledge="manual"
+
+### 7. TTL
+
+  TTL 全称 Time To Live（存活时间/过期时间）。
+
+  当消息到达存活时间后，还没有被消费，会被自动清除。
+
+  RabbitMQ可以对消息设置过期时间，也可以对整个队列（Queue）设置过期时间。
+
+![rabbitmq-高级特性-ttl-1](RabbitMQ.assets/rabbitmq-高级特性-ttl-1.png)
+
+  设置队列过期时间使用参数：x-message-ttl，单位：ms(毫秒)，会对整个队列消息统一过期。
+
+  设置消息过期时间使用参数：expiration。单位：ms(毫秒)，当该消息在队列头部时（消费时），会单独判断这一消息是否过期。
+
+  如果两者都进行了设置，以时间短的为准。
+  
+### 8. 死信队列 
+
+  死信队列，英文缩写：DLX  。Dead Letter Exchange（死信交换机），当消息成为Dead message后，可以被重新发送到另一个交换机，
+  这个交换机就是DLX。
+
+![rabbitmq-高级特性-死信队列-1](RabbitMQ.assets/rabbitmq-高级特性-死信队列-1.png)
+
+#### 8.1 消息成为死信的三种情况：
+
+  1. 队列消息长度到达限制；
+
+  2. 消费者拒接消费消息，basicNack/basicReject,并且不把消息重新放入原目标队列,requeue=false；
+
+  3. 原队列存在消息过期设置，消息到达超时时间未被消费；
+
+#### 8.2 队列绑定死信交换机：
+
+   给队列设置参数： x-dead-letter-exchange 和 x-dead-letter-routing-key
+
+![rabbitmq-高级特性-死信队列-2](RabbitMQ.assets/rabbitmq-高级特性-死信队列-2.png)
+
+#### 8.3 死信队列总结 
+
+  1. 死信交换机和死信队列和普通的没有区别
+
+  2. 当消息成为死信后，如果该队列绑定了死信交换机，则消息会被死信交换机重新路由到死信队列
+
+  3. 消息成为死信的三种情况：
+
+    1. 队列消息长度到达限制；
+
+    2. 消费者拒接消费消息，并且不重回队列；
+
+    3. 原队列存在消息过期设置，消息到达超时时间未被消费；
+
+### 9. 延时队列 
+
+  延迟队列，即消息进入队列后不会立即被消费，只有到达指定时间后，才会被消费。
+
+  需求：
+ 
+    1. 下单后，30分钟未支付，取消订单，回滚库存。
+
+    2. 新用户注册成功7天后，发送短信问候。
+
+  实现方式：
+
+    1. 定时器
+
+    2. 延迟队列
+
+![rabbitmq-高级特性-延迟队列-1](RabbitMQ.assets/rabbitmq-高级特性-延迟队列-1.png)
+
+  很可惜，在RabbitMQ中并未提供延迟队列功能。
+
+  但是可以使用：TTL+死信队列 组合实现延迟队列的效果。
+
+![rabbitmq-高级特性-延迟队列-2](RabbitMQ.assets/rabbitmq-高级特性-延迟队列-2.png)
+
+#### 9.1 延迟队列总结
+
+  1. 延迟队列 指消息进入队列后，可以被延迟一定时间，再进行消费。
+
+  2. RabbitMQ没有提供延迟队列功能，但是可以使用 ： TTL + DLX 来实现延迟队列效果。
+
+### 10. 消息幂等性保障 
+
+  幂等性指一次和多次请求某一个资源，对于资源本身应该具有同样的结果。也就是说，其任意多次执行对资源本身所产生的影响均与一次执行的影响相同。
+
+  在MQ中指，消费多条相同的消息，得到与消费该消息一次相同的结果。
+
+#### 10.1 消息幂等性保障--乐观锁机制
+
+![rabbitmq-高级特性-消息幂等性-乐观锁](RabbitMQ.assets/rabbitmq-高级特性-消息幂等性-乐观锁.png)
+
+### 消息积压 
+
+  消费者宕机积压
+
+    -消费者消费能力不足积压
+    
+    -发送者发流量太大
+
+  解决方案:上线更多的消费者,进行正常消费上线专门的队列消费服务,将消息先批量取出来,记录数据库,再慢慢处理

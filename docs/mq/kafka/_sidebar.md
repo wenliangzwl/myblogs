@@ -1,3 +1,4 @@
 - kafka
   - [kafka](mq/kafka/kafka.md)
+  - [kafka原理及性能优化](mq/kafka/kafka原理及性能优化.md)
 - [首页](README.md)
