@@ -1,6 +1,5 @@
 - [并发编程](concurrent/_sidebar.md)
-- JVM
-   - [JVM](jvm/_sidebar.md)
+- [JVM](jvm/_sidebar.md)
 - [JAVA 集合](collection/_sidebar.md)
 - [MyBatis](mybatis/_sidebar.md)
 - [Spring 框架](spring/_sidebar.md)
@@ -16,8 +15,7 @@
   - [RabbitMq](mq/RabbitMq/_sidebar.md)
   - [kafka](mq/kafka/_sidebar.md)
   - [ActiveMq](mq/ActiveMq/_sidebar.md)
-- netty
-  - [网络基础和JAVA-IO](netty/网络基础和JAVA-IO.md)
+- [netty](netty/_sidebar.md)
 - [设计模式](desgin-pattern/_sidebar.md)
 - 数据库相关
   - [Redis](redis/_sidebar.md)
