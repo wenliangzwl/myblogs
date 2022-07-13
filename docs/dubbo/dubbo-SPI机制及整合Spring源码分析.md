@@ -1,6 +1,6 @@
-### Dubbo的可扩展机制SPI源码解析
+### 1. Dubbo的可扩展机制SPI源码解析
 
-#### Demo
+#### 1.1 Demo
 ```
 ExtensionLoader<Protocol> extensionLoader = ExtensionLoader.getExtensionLoader(Protocol.class);
 Protocol http = extensionLoader.getExtension("dubbo");
@@ -11,7 +11,12 @@ System.out.println(http);
    
    在ExtensionLoader类的内部有一个static的ConcurrentHashMap，用来缓存某个接口类型所对应的ExtensionLoader实例
  
-#### ExtensionLoader
+
+#### 1.2 dubbo spi 架构图
+
+![duoob-dubbo-spi架构图](dubbo.assets/duoob-dubbo-spi架构图.png)
+
+#### 1.3 ExtensionLoader
    
    ExtensionLoader表示一个扩展点加载器，在这个类中除开有上文的Map外，还有两个非常重要的属性：
     
@@ -35,7 +40,7 @@ ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension(
        
        1. getExtension("dubbo")：表示获取名字为dubbo的扩展点实例
        2. getAdaptiveExtension()：表示获取一个自适应的扩展点实例
-       3. getActivateExtension(URL url, String[] values, String group)：表示一个可以被url激活的扩展点实例，后文详细解释
+       3. getActivateExtension(URL url, String[] values, String group)：表示一个可以被url激活的扩展点实例.
    
    其中，什么是自适应的扩展点实例？它其实就是当前这个接口类型的一个代理类，可以通过这个代理类去获取某个名字的扩展点。那为什么要这么设计呢？
    
@@ -49,11 +54,11 @@ ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension(
    
    所以回到上文的那么代码，它拿到的就是一个AdaptiveExtensionFactory实例， objectFactory表示一个扩展点实例工厂。
 
-#### getExtension(String name)方法
+#### 1.4 getExtension(String name)方法
    
    在调用getExtension去获取一个扩展点实例后，会对实例进行缓存，下次再获取同样名字的扩展点实例时就会从缓存中拿了。
    
-#### createExtension(String name)方法
+#### 1.5 createExtension(String name)方法
    
    在调用createExtension(String name)方法去创建一个扩展点实例时，要经过以下几个步骤：
        
@@ -63,7 +68,9 @@ ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension(
        4. 对依赖注入后的实例进行AOP（Wrapper）,把当前接口类的所有的Wrapper全部一层一层包裹在实例对象上，没包裹个Wrapper后，也会对Wrapper对象进行依赖注入
        5. 返回最终的Wrapper对象
 
-#### getExtensionClasses
+![dubbo-createExtension](dubbo.assets/dubbo-createExtension.png)
+
+#### 1.6 getExtensionClasses
    
    getExtensionClasses()是用来加载当前接口所有的扩展点实现类的，返回一个Map。之后可以从这个Map中按照指定的name获取对应的扩展点实现类。
    
@@ -75,13 +82,13 @@ ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension(
        2. 根据接口的全限定名去META-INF/dubbo/目录下寻找对应的文件，调用loadResource方法进行加载
        3. 根据接口的全限定名去META-INF/services/目录下寻找对应的文件，调用loadResource方法进行加载
 
-#### loadResource方法
+#### 1.7 loadResource方法
    
    loadResource方法就是完成对文件内容的解析，按行进行解析，会解析出"="两边的内容，"="左边的内容就是扩展点的name，右边的内容就是扩展点实现类，并且会利用ExtensionLoader类的类加载器来加载扩展点实现类。
    
    然后调用loadClass方法对name和扩展点实例进行详细的解析，并且最终把他们放到Map中去。
 
-#### loadClass方法
+#### 1.8 loadClass方法
    
    loadClass方法会做如下几件事情：
        
@@ -99,7 +106,7 @@ ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension(
    
    回到createExtension(String name)方法中的逻辑，当前这个接口的所有扩展点实现类都扫描完了之后，就可以根据用户所指定的名字，找到对应的实现类了，然后进行实例化，然后进行IOC(依赖注入)和AOP。
 
-#### Dubbo中的IOC
+#### 1.9 Dubbo中的IOC
 
    1. 根据当前实例的类，找到这个类中的setter方法，进行依赖注入
    
@@ -111,19 +118,23 @@ ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension(
    
    5. 再反射调用setter方法进行注入
 
-#### Dubbo中的AOP
+#### 1.10 Dubbo中的AOP
    
-   dubbo中也实现了一套非常简单的AOP，就是利用Wrapper，如果一个接口的扩展点中包含了多个Wrapper类，那么在实例化完某个扩展点后，就会利用这些Wrapper类对这个实例进行包裹，比如：现在有一个DubboProtocol的实例，同时对于Protocol这个接口还有很多的Wrapper，比如ProtocolFilterWrapper、ProtocolListenerWrapper，那么，当对DubboProtocol的实例完成了IOC之后，就会先调用new ProtocolFilterWrapper(DubboProtocol实例)生成一个新的Protocol的实例，再对此实例进行IOC，完了之后，会再调用new ProtocolListenerWrapper(ProtocolFilterWrapper实例)生成一个新的Protocol的实例，然后进行IOC，从而完成DubboProtocol实例的AOP。
+   dubbo中也实现了一套非常简单的AOP，就是利用Wrapper，如果一个接口的扩展点中包含了多个Wrapper类，那么在实例化完某个扩展点后，就会利用这些Wrapper类对这个实例进行包裹，
+   比如：现在有一个DubboProtocol的实例，同时对于Protocol这个接口还有很多的Wrapper，比如ProtocolFilterWrapper、ProtocolListenerWrapper，那么，
+   当对DubboProtocol的实例完成了IOC之后，就会先调用new ProtocolFilterWrapper(DubboProtocol实例)生成一个新的Protocol的实例，再对此实例进行IOC，完了之后，
+   会再调用new ProtocolListenerWrapper(ProtocolFilterWrapper实例)生成一个新的Protocol的实例，然后进行IOC，从而完成DubboProtocol实例的AOP。
 
-#### AdaptiveClass
+#### 1.11 AdaptiveClass
    
    上文多次提到了Adaptive，表示一个接口的自适应类，这里详细的来讲讲。
    
-   通过getAdaptiveExtension方法获得的实例就是Adaptive类的实例，在Dubbo中有两种方式来针对某个接口得到一个Adaptive类，一种是在某个接口的实现类上指定一个@Adaptive注解，那么该类就是这个接口的Adaptive类，或者利用Dubbo的默认实现来得到一个Adaptive类，一个接口只能有一个Adaptive类。
+   通过getAdaptiveExtension方法获得的实例就是Adaptive类的实例，在Dubbo中有两种方式来针对某个接口得到一个Adaptive类，一种是在某个接口的实现类上指定一个@Adaptive注解，
+   那么该类就是这个接口的Adaptive类，或者利用Dubbo的默认实现来得到一个Adaptive类，一个接口只能有一个Adaptive类。
    
    如果是手动实现的Adaptive类，那么自适应逻辑就是自己实现的。如果是有Dubbo默认实现的，那么我们就看看Dubbo是如何实现Adaptive类的。
 
-#### createAdaptiveExtensionClass方法
+#### 1.12 createAdaptiveExtensionClass方法
    
    createAdaptiveExtensionClass方法就是Dubbo中默认生成Adaptive类实例的逻辑。说白了，这个实例就是当前这个接口的一个代理对象。比如下面的代码：
 ```
@@ -196,9 +207,9 @@ public class Protocol$Adaptive implements org.apache.dubbo.rpc.Protocol {
     
     4. 该方法有参数，可以有多个，没有URL类型的参数，但是如果这些参数类型，对应的类中存在getUrl方法（返回值类型为URL），那么也可以进行代理
   
-  所以，可以发现，某个接口的Adaptive对象，在调用某个方法时，是通过该方法中的URL参数，通过调用ExtensionLoader.getExtensionLoader(com.luban.Car.class).getExtension(extName);得到一个扩展点实例，然后调用该实例对应的方法。
+  所以，可以发现，某个接口的Adaptive对象，在调用某个方法时，是通过该方法中的URL参数，通过调用ExtensionLoader.getExtensionLoader(com.wlz.Car.class).getExtension(extName);得到一个扩展点实例，然后调用该实例对应的方法。
   
-####  Activate扩展点
+####  1.13 Activate扩展点
   
   上文说到，每个扩展点都有一个name，通过这个name可以获得该name对应的扩展点实例，但是有的场景下，希望一次性获得多个扩展点实例，可以通过传入多个name来获取，可以通过识别URL上的信息来获取：
   
@@ -210,8 +221,12 @@ public class Protocol$Adaptive implements org.apache.dubbo.rpc.Protocol {
     
     2. String[] value()：指示的是URL中的某个参数key，当利用getActivateExtension方法来寻找扩展点时，如果传入的url中包含的参数的所有key中，包括了当前扩展点中的value值，那么则表示当前url可以使用该扩展点。
 
+### 2. Spring与Dubbo整合原理
 
-### Spring与Dubbo整合原理
+![dubbo-spring整合dubbo整体架构图](dubbo.assets/dubbo-spring整合dubbo整体架构图.png)
+
+#### 2.1 demo 
+
 ```
 public class Application {
     public static void main(String[] args) throws Exception {
@@ -356,6 +371,8 @@ dubbo.protocols.p2.host=0.0.0.0
     4. ReferenceAnnotationBeanPostProcessor的父类是AnnotationInjectedBeanPostProcessor，是一个InstantiationAwareBeanPostProcessorAdapter，是在Spring对容器中的bean进行依赖注入时使用的。
 
 ##### ServiceAnnotationBeanPostProcessor
+
+![dubbo-ServiceAnnotationBeanPostProcessor](dubbo.assets/dubbo-ServiceAnnotationBeanPostProcessor.png)
    
    在执行postProcessBeanDefinitionRegistry()方法时，会先生成一个DubboClassPathBeanDefinitionScanner，它负责扫描。接下来的流程：
        
@@ -375,11 +392,17 @@ dubbo.protocols.p2.host=0.0.0.0
        14. 到此生成了一个ServiceBean的BeanDefinition
        15. 然后生成一个ServiceBeanName，并把对应的BeanDefinition注册到Spring中去
        
-       16. 总结一下：ServiceAnnotationBeanPostProcessor主要用来扫描指定包下面的@Service注解，把扫描到的@Service注解所标注的类都生成一个对应的BeanDefinition(会随着Spring的生命周期生成一个对应的Bean)，然后遍历扫描出来的BeanDefinition，根据@Service注解中的参数配置，会生成一个ServiceBean类型的BeanDefinition，并添加到Spring容器中去，所以相当于一个@Service注解会生成两个Bean，一个当前类的Bean，一个ServiceBean类型的Bean。需要注意的是ServiceBean实现了ApplicationListener接口，当Spring启动完后，会发布ContextRefreshedEvent事件，ServiceBean会处理该事件，调用ServiceBean中的export()，该方法就是服务导出的入口。
+       16. 总结一下：ServiceAnnotationBeanPostProcessor主要用来扫描指定包下面的@Service注解，把扫描到的@Service注解所标注的类都生成一个对应的BeanDefinition
+      (会随着Spring的生命周期生成一个对应的Bean)，然后遍历扫描出来的BeanDefinition，根据@Service注解中的参数配置，会生成一个ServiceBean类型的BeanDefinition，
+      并添加到Spring容器中去，所以相当于一个@Service注解会生成两个Bean，一个当前类的Bean，一个ServiceBean类型的Bean。需要注意的是ServiceBean实现了ApplicationListener接口，
+      当Spring启动完后，会发布ContextRefreshedEvent事件，ServiceBean会处理该事件，调用ServiceBean中的export()，该方法就是服务导出的入口。
 
 ##### ReferenceAnnotationBeanPostProcessor
+
+![dubbo-ReferenceAnnotationBeanPostProcessor](dubbo.assets/dubbo-ReferenceAnnotationBeanPostProcessor.png)
    
-   ReferenceAnnotationBeanPostProcessor的父类是AnnotationInjectedBeanPostProcessor，是一个InstantiationAwareBeanPostProcessorAdapter，是在Spring对容器中的bean进行依赖注入时使用的。
+   ReferenceAnnotationBeanPostProcessor的父类是AnnotationInjectedBeanPostProcessor，是一个InstantiationAwareBeanPostProcessorAdapter，是在Spring对容器中的bean进行
+   依赖注入时使用的。
    
    当Spring根据BeanDefinition生成了实例对象后，就需要对对象中的属性进行赋值，此时会：
        
@@ -404,6 +427,8 @@ dubbo.protocols.p2.host=0.0.0.0
        19. 调用postConfigureBean方法对applicationContext、interfaceName、consumer、methods属性进行赋值
        20. 最后调用ReferenceBean实例的afterPropertiesSet方法
        21. ReferenceBean生成后了之后，就会调用ReferenceBean的get方法得到一个接口的代理对象，最终会把这个代理对象注入到属性中去
-       22. 总结一下：ReferenceAnnotationBeanPostProcessor主要在Spring对容器中的Bean进行属性注入时进行操作，当Spring对一个Bean进行属性注入时，先查找@Reference的注入点，然后对注入点进行调用，在调用过程中，会根据属性类型，@Reference注解信息生成一个ReferenceBean，然后对ReferenceBean对象的属性进行赋值，最后调用ReferenceBean的get方法得到一个代理对象，最终把这个代理对象注入给属性。需要注意的是ReferenceBean的get()方法就是服务引入流程的入口。
+       22. 总结一下：ReferenceAnnotationBeanPostProcessor主要在Spring对容器中的Bean进行属性注入时进行操作，当Spring对一个Bean进行属性注入时，先查找@Reference的注入点，
+      然后对注入点进行调用，在调用过程中，会根据属性类型，@Reference注解信息生成一个ReferenceBean，然后对ReferenceBean对象的属性进行赋值，最后调用ReferenceBean的get方法得到一个代理对象，
+      最终把这个代理对象注入给属性。需要注意的是ReferenceBean的get()方法就是服务引入流程的入口。
        
    

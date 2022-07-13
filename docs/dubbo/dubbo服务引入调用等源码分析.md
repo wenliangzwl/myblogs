@@ -1,6 +1,6 @@
-### Dubbo服务导出源码解析
+### 1. Dubbo服务导出源码解析
 
-#### 服务导出入口
+#### 1.1 服务导出入口
 
    服务导出的入口方法为ServiceBean.export()，此方法会调用ServiceConfig.export()方法，进行真正的服务导出。
    
@@ -22,8 +22,10 @@
        4. 将服务URL注册到注册中心去
        5. 根据服务支持的不同协议，启动不同的Server，用来接收和处理请求
        6. 因为Dubbo支持动态配置服务参数，所以服务导出时还需要绑定一个监听器Listener来监听服务的参数是否有修改，如果发现有修改，则需要重新进行导出
-   
-#### 确定服务的参数
+
+![dubbo-服务导出](dubbo.assets/dubbo-服务导出.png)
+
+#### 1.2 确定服务的参数
    
    在执行ServiceConfig.export()时，此时ServiceConfig对象就是一个服务，我们已经知道了这个服务的名字（就是接口的名字），并且此时这个服务可能已经有一些参数了，就是@Service注解上所定义的参数。
    
@@ -58,7 +60,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
    
    **所以在确定服务参数时，需要先从上级获取参数，获取之后，如果服务本身配置了相同的参数，那么则进行覆盖。**
    
-#### 确定服务支持的协议
+#### 1.3 确定服务支持的协议
    
    确定服务所支持的协议还是比较简单的，就是看用户配了多少个Protocol。和服务参数意义，Protocol也是可以在各个配置点进行配置的。
    
@@ -69,7 +71,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
    
    所以在服务导出时，需要从以上几个地方获取协议，结果可能是一个协议，也可能是多个协议，从而确定出协议。
    
-#### 构造服务最终的URL
+#### 1.4 构造服务最终的URL
    
    有了确定的协议，服务名，服务参数后，自然就可以组装成服务的URL了。
    
@@ -79,13 +81,13 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
    
    只有这样作完之后得到的URL才是真正准确的服务提供者URL。
 
-#### 将服务URL注册到注册中心去
+#### 1.5 将服务URL注册到注册中心去
    
    有了准确的服务URL之后，就可以把URL注册到注册中心上去了。
    
    这个步骤并不麻烦，只不过这里要去寻找用户是否配置了多个注册中心，将服务URL注册到每个注册中心去。
 
-#### 根据服务URL启动Server
+#### 1.6 根据服务URL启动Server
    
    在服务URL中指定了协议，比如Http协议、Dubbo协议。根据不同的协议启动对应的Server。
    
@@ -130,7 +132,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
        b. 如果Request不是TwoWay，则会调用下一个Handler(DubboProtocol中的requestHandler)的received方法处理该请求，不会返回结果
        8. requestHandler：此Handler是真正的处理请求逻辑，在received()方法中，如果msg是Invocation，则会调用reply方法，但不会返回reply方法所返回的结果，在reply方法中把msg强制转换为Invocation类型 inv，然后根据inv得到对应的服务Invoker，然后调用invoke(inv)方法，得到结果。
        
-#### 服务导出源码流程
+#### 1.7 服务导出源码流程
        
    1. ServiceBean.export()方法是导出的入口方法，会执行ServiceConfig.export()方法完成服务导出，导出完了之后会发布一个Spring事件ServiceBeanExportedEvent
    
@@ -184,7 +186,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
        
        f. 最后将ExporterChangeableWrapper封装为DestroyableExporter对象返回，完成服务导出
        
-#### Exporter架构
+#### 1.8 Exporter架构
    
    ![](dubbo.assets/Exporter架构.png)
    
@@ -198,7 +200,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
     
     4. DubboExporter：这个类中保存了对应服务的Invoker对象，和当前服务的唯一标志，当NettyServer接收到请求后，会根据请求中的服务信息，找到服务对应的DubboExporter对象，然后从对象中得到Invoker对象
     
-#### 服务端Invoker架构
+#### 1.9 服务端Invoker架构
    
    ![](dubbo.assets/服务端Invoker架构.png)
    
@@ -212,7 +214,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
    
    5.AbstractProxyInvoker：服务接口的代理类，绑定了对应的实现类，执行时会利用反射调用服务实现类实例的具体方法，并得到结果
 
-#### 服务监听器原理总结
+#### 1.10 服务监听器原理总结
    
    服务在导出的过程中需要向动态配置中心的数据进行订阅，以便当管理人员修改了动态配置中心中对应服务的参数后，服务提供者能及时做出变化。
    
@@ -303,7 +305,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
             ⅳ. 调用RegistryProtocol的register()方法，把新的registeredProviderUrl注册到注册中心
 
 
-###  Dubbo服务引入源码解析
+###  2. Dubbo服务引入源码解析
    
    当Spring启动过程中，会去给@Reference注解标注了的属性去进行赋值，赋值的对象为ReferenceBean中get()方法所返回的对象，这个对象是一个代理对象。
    
@@ -351,7 +353,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
    
    8. 但是，上面返回的两个Invoker都会被MockClusterInvoker包装，所以最终返回的是MockClusterInvoker。
    
-####  新版本构造路由链
+####  2.1 新版本构造路由链
    
    RouterChain.buildChain(url)方法赋值得到路由链。
    
@@ -403,7 +405,7 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
    
    到此，新版本路由链构造完毕。
    
-#### 服务目录
+#### 2.2 服务目录
    
    消费端每个服务对应一个服务目录RegistryDirectory。
    
@@ -477,9 +479,12 @@ dubbo.service.{interface-name}[.{method-name}].timeout=3000
    
    8. 这样Invoker就生成好了
 
-#### DubboProtocol的服务引入（Refer）
+![dubbo-服务引入](dubbo.assets/dubbo-服务引入.png)
+
+#### 2.3 DubboProtocol的服务引入（Refer）
    
    DubboProtocol中并没有refer方法，是在它的父类AbstractProtocol中才有的refer方法
+
 ```
 @Override
 public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
@@ -523,7 +528,7 @@ public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
         
         j. 在构造NettyClient的过程中，会去初始化Netty的客户端，然后连接Server端，建立一个Socket连接
 
-#### 最复杂情况下的Invoker链
+#### 2.4 最复杂情况下的Invoker链
     
 ```
 @Reference(url = "dubbo://192.168.40.17:20881/org.apache.dubbo.demo.DemoService;registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?registry=zookeeper")
@@ -562,7 +567,7 @@ private DemoService demoService;
                         • invoker=AsyncToSyncInvoker
                             • invoker=DubboInvoker
 
-#### Invoker总结
+#### 2.5 Invoker总结
    
    MockClusterInvoker： 完成Mock功能，由MockClusterWrapper生成，MockClusterWrapper是Cluster接口的包装类，通过Cluster.join()方法得到MockClusterInvoker
    
@@ -573,16 +578,15 @@ private DemoService demoService;
    DubboInvoker：完成Dubbo协议底层发送数据
    
    ProtocolFilterWrapper$CallbackRegistrationInvoker：完成对filter的调用，ProtocolFilterWrapper是Protocol接口的包装类，通过Protocol.refer()方法得到CallbackRegistrationInvoke。
-   
 
-### Dubbo服务调用源码解析
+
+### 3. Dubbo服务调用源码解析
    
    ![](dubbo.assets/Dubbo服务调用源码流程.png)
    
    processon链接：https://www.processon.com/view/link/5eda2e5ff346fb1712e3303b
    
-#### 服务消费端执行逻辑
-
+#### 3.1 服务消费端执行逻辑
    
    1.MockClusterInvoker.invoke(new RpcInvocation(method, args))：Mock逻辑
    
@@ -638,7 +642,7 @@ private DemoService demoService;
    
    7. HeaderExchangeChannel中会阻塞timeout的时间来等待结果，该timeout就是用户在消费端所配置的timeout
 
-#### 服务提供端执行逻辑
+#### 3.2 服务提供端执行逻辑
    
    1. NettyServerHandler：接收数据
    
@@ -678,7 +682,7 @@ private DemoService demoService;
    
    19. AbstractProxyInvoker：在服务导出时，根据服务接口，服务实现类对象生成的，它的invoke方法就会执行服务实现类对象的方法，得到结果
    
-#### Dubbo的异常处理
+#### 3.3 Dubbo的异常处理
    
    当服务消费者在调用一个服务时，服务提供者在执行服务逻辑时可能会出现异常，对于Dubbo来说，服务消费者需要在消费端抛出这个异常，那么这个功能是怎么做到的呢？
    
