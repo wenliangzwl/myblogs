@@ -1,4 +1,4 @@
-## 什么是 Nacos
+### 1. 什么是 Nacos
 
 官方文档： https://nacos.io/zh-cn/docs/what-is-nacos.html
 
@@ -11,15 +11,26 @@ Nacos 的关键特性包括:
 - 动态 DNS 服务
 - 服务及其元数据管理
 
-### Nacos 架构
+#### 1.1 Nacos 架构
 
 ![nacos_arch.jpg](spring-cloud-alibaba.assets/nacos架构.jpeg)
 
+
+  NamingService: 命名服务，注册中心核心接口 
+  
+  ConfigService:配置服务，配置中心核心接口 
+  
+  OpenAPI文档:https://nacos.io/zh-cn/docs/open-api.html 
+  
+  nacos版本: v1.1.4 升级到v1.4.1
+
 官方文档：https://nacos.io/zh-cn/docs/architecture.html
 
-### Nacos Server部署
+#### 1.2 Nacos Server 部署
 
-**下载源码编译**
+##### 1.2.1 下载
+
+###### 1. 下载源码编译
 
 源码下载地址：https://github.com/alibaba/nacos/  
 
@@ -29,13 +40,13 @@ mvn -Prelease-nacos clean install -U
 cd nacos/distribution/target/
 ```
 
-**下载安装包**
+###### 2. 下载安装包
 
 下载地址：https://github.com/alibaba/Nacos/releases
 
 ![img](spring-cloud-alibaba.assets/clipboard-1596108781531.png)
 
-#### 单机模式
+##### 1.2.2 单机模式
 
 官方文档： https://nacos.io/zh-cn/docs/deployment.html
 
@@ -53,7 +64,7 @@ bin/startup.sh -m standalone
 
 ![img](spring-cloud-alibaba.assets/clipboard-1596108811923.png)
 
-#### 集群模式
+##### 1.2.3 集群模式
 
 官网文档： https://nacos.io/zh-cn/docs/cluster-mode-quick-start.html
 
@@ -118,37 +129,60 @@ bin/startup.sh
 访问： [http://192.168.3.14:8847/nacos](http://192.168.3.14:8849/nacos) 
 
 
+#### 1.3 prometheus + grafana 监控 Nacos
 
-## Nacos注册中心
+  https://nacos.io/zh-cn/docs/monitor-guide.html
+
+  Nacos 0.8.0版本完善了监控系统，支持通过暴露metrics数据接入第三方监控系统监控Nacos运行状态。
+
+##### 1.3.1 nacos暴露metrics数据
+
+```
+management.endpoints.web.exposure.include=*
+```
+
+   测试: http://localhost:8848/nacos/actuator/prometheus
+
+##### 1.3.2. prometheus采集Nacos metrics数据
+
+   启动prometheus服务
+
+```
+prometheus.exe‐‐config.file=prometheus.yml
+```
+
+  测试:http://localhost:9090/graph
+
+##### 1.3.3. grafana展示metrics数据
+
+  测试: http://localhost:3000/
+
+### 2. Nacos注册中心
 
 官方文档： https://github.com/alibaba/spring-cloud-alibaba/wiki/Nacos-discovery
 
-### 微服务之间如何调用
+#### 2.1 微服务之间如何调用
 
 **RestTemplate实现服务间调用**
 
 Spring框架提供的RestTemplate类可用于在应用中调用rest服务，它简化了与http服务的通信方式，统一了RESTful的标准，封装了http链接， 我们只需要传入url及返回值类型即可。相较于HttpClient，RestTemplate是一种更优雅的调用RESTful服务的方式。在SpringBoot中可以通过RestTemplate 调用方式来进行服务调用，比如user服务（服务消费者）调用order服务（服务提供者）。
 
-```java
+```
 String url = "http://localhost:8010/order/findOrderByUserId/"+id;
 ResponseEntity<List> responseEntity = restTemplate.getForEntity(url,
 List.class);
 List<Order> orderList = responseEntity.getBody();
 ```
 
-思考： ==如何动态的实现服务的发现？==
+#### 2.2 注册中心演变及其设计思想 
 
-**注册中心演进**
+![spring-cloud-alibaba-注册中心演进](spring-cloud-alibaba.assets/spring-cloud-alibaba-注册中心演进.png)
 
-https://www.processon.com/view/link/5e71cc85e4b011fcce9d604d
-
-
-
-### 注册中心架构
+#### 2.3 注册中心架构
 
 ![image-20200730203758744](spring-cloud-alibaba.assets/image-20200730203758744.png)
 
-### 核心功能
+#### 2.4 核心功能
 
 **服务注册**：Nacos Client会通过发送REST请求的方式向Nacos Server注册自己的服务，提供自身的元数据，比如ip地址、端口等信息。Nacos Server接收到注册请求后，就会把这些元数据信息存储在一个双层的内存Map中。
 
@@ -160,15 +194,23 @@ https://www.processon.com/view/link/5e71cc85e4b011fcce9d604d
 
 **服务健康检查**：Nacos Server会开启一个定时任务用来检查注册服务实例的健康情况，对于超过15s没有收到客户端心跳的实例会将它的healthy属性置为false(客户端服务发现时不会发现)，如果某个实例超过30秒没有收到心跳，直接剔除该实例(被剔除的实例如果恢复发送心跳则会重新注册)
 
+#### 2.5 服务注册表结构 
 
+![spring-cloud-alibaba-服务注册表结构](spring-cloud-alibaba.assets/spring-cloud-alibaba-服务注册表结构.png)
 
-### 快速开始
+#### 2.6 服务领域模型 
 
-搭建Nacos-client服务
+![spring-cloud-albaba-服务领域模型](spring-cloud-albaba-服务领域模型.png)
 
-1）引入依赖
+### 3. Spring Cloud Alibaba Nacos 快速开始
 
-父Pom中支持spring cloud&spring cloud alibaba, 引入依赖
+#### 3.1 Spring Cloud Alibaba版本选型
+
+#### 3.2 搭建Nacos-client服务
+
+##### 3.2.1 引入依赖
+
+###### 1. 父Pom中支持spring cloud&spring cloud alibaba, 引入依赖
 
 ```xml
 <dependencyManagement>
@@ -192,22 +234,9 @@ https://www.processon.com/view/link/5e71cc85e4b011fcce9d604d
     </dependencies>
 
 </dependencyManagement>
-
-<repositories>
-    <repository>
-        <id>spring</id>
-        <url>https://maven.aliyun.com/repository/spring</url>
-        <releases>
-            <enabled>true</enabled>
-        </releases>
-        <snapshots>
-            <enabled>true</enabled>
-        </snapshots>
-    </repository>
-</repositories>
 ```
 
-当前项目pom中引入依赖
+###### 2. 当前项目pom中引入依赖
 
 ```xml
 <dependency>
@@ -216,7 +245,7 @@ https://www.processon.com/view/link/5e71cc85e4b011fcce9d604d
 </dependency>
 ```
 
-2) application.properties中配置
+##### 2. application.properties中配置
 
 ```properties
 server.port=8002
@@ -230,24 +259,25 @@ spring.cloud.nacos.discovery.server-addr=localhost:8848
 
 ![image-20200731145930319](spring-cloud-alibaba.assets/image-20200731145930319.png)
 
-3）启动springboot应用，nacos管理端界面查看是否成功注册
+##### 3. 启动springboot应用，nacos管理端界面查看是否成功注册
 
-![image-20200730222917391](spring-cloud-alibaba.assets/image-20200730222917391.png)
+![spring-cloud-alibaba-nacos-测试](spring-cloud-alibaba.assets/spring-cloud-alibaba-nacos-测试.png)
 
-4）测试
+##### 4. 测试
 
 使用RestTemplate进行服务调用，可以使用微服务名称 （spring.application.name）
 
-```java
-String url = "http://service-order/order/findOrderByUserId/"+id;
-ResponseEntity<List> responseEntity = restTemplate.getForEntity(url,
-List.class);
-List<Order> orderList = responseEntity.getBody();
+```
+log.info("根据userId:"+id+"查询订单信息");
+ // 添加@LoadBalanced调用, 如果不添加 会找不到
+String url = "http://spring-cloud-alibaba-nacos-order/order/findOrderByUserId/"+id;
+String result = restTemplate.getForObject(url,String.class);
+return result;
 ```
 
 注意：==需要添加@LoadBalanced注解==
 
-```java
+```
 @Bean
 @LoadBalanced
 public RestTemplate restTemplate() {
@@ -255,9 +285,90 @@ public RestTemplate restTemplate() {
 }
 ```
 
+或者：
 
+```
+ @Bean
+public RestTemplate restTemplate() {
+        RestTemplate restTemplate = new RestTemplate();
+        restTemplate.setInterceptors(Collections.singletonList(new LoadBalancerInterceptor(loadBalancerClient)));
+        return restTemplate;
+}
+```
 
+### 4. Nacos源码编译运行
 
+#### 4.1 源码下载
+
+  下载地址：https://github.com/alibaba/nacos/
+
+  版本： Nacos 1.4.1
+
+![spring-cloud-alibaba-nacos-源码](spring-cloud-alibaba.assets/spring-cloud-alibaba-nacos-源码.png)
+
+#### 4.2 进入nacos目录，执行编译命令
+
+```shell
+mvn -Prelease-nacos -Dmaven.test.skip=true -Drat.skip=true clean install -U
+```
+
+编译成功后会在distribution/target目录下生成  nacos-server-1.4.1.tar.gz 
+
+![img](spring-cloud-alibaba.assets/clipboard-1596109198808.png)
+
+##### 4.2.1 m1 编译报错 
+
+https://www.its203.com/article/qq_42651904/120923278
+
+  直接修改maven的settings.xml  
+  
+  增加一个profile标签和一个activeProfile标签
+
+```
+<profile>
+  <id>apple-silicon</id>
+  <properties>
+    <os.detected.classifier>osx-x86_64</os.detected.classifier>
+  </properties>
+</profile>
+
+<activeProfiles>
+  <activeProfile>apple-silicon</activeProfile>
+</activeProfiles>
+```
+
+#### 4.3 启动nacos
+
+##### 4.3.1 进入console模块，找到启动类 com.alibaba.nacos.Nacos，执行main方法
+
+![img](spring-cloud-alibaba.assets/clipboard-1596109210512.png)
+
+##### 4.3.2 配置启动参数
+
+单机模式执行需要指定nacos.standalone=true
+
+```
+-Dnacos.standalone=true -Dnacos.home=/Library/java_workspace/nacos/nacos
+```
+
+- 创建nacos_config数据库（distribution/conf/nacos-mysql.sql）
+- 在application.properties中添加mysql配置
+
+```
+# 支持mysql
+spring.datasource.platform=mysql
+db.num=1
+db.url.0=jdbc:mysql://127.0.0.1:3306/nacos_config?characterEncoding=utf8\
+  &connectTimeout=1000&socketTimeout=3000&autoReconnect=true
+db.user=root
+db.password=root
+```
+
+#### 4.4 查看 
+
+  进入 [http://localhost:8848/nacos](http://localhost:8848/nacos/#/login)，用户名和密码默认nacos
+
+![img](spring-cloud-alibaba.assets/clipboard-1596109370048.png)
 
 ### 服务注册表结构
 
@@ -310,8 +421,6 @@ Nacos 数据模型 Key 由三元组唯一确定, Namespace默认是空串，公�
 	"weight": 1.0
 }]
 ```
-
-
 
 ## Nacos配置中心
 
@@ -510,95 +619,7 @@ GenericScope.BeanLifecycleWrapper#getBean
 ```
 
 
-
-## 为什么看源码
-
-- 提升技术功底         java基础       中间件    
-- 深度掌握技术框架
-- 快速定位线上问题
-- 面试必问     
-- 技术追求      
-
-### 原则
-
-- 定焦原则： 抓主线（抓住一个核心流程去分析，不要漫无目的的去看源代码）
-- 宏观原则： 站在上帝视角，先脉络后枝叶 （切忌试图搞清楚每一行代码）
-
-### 方法
-
-1. 先会使用，了解框架的设计思想和功能架构
-2. 抓主线，多尝试静态看代码
-3. 在源码中写注释&画流程图
-4. 整合总结
-
-### 技巧
-
-1. 断点（观察调用栈，利用条件断点，表达式）
-2. 反调 （Find Usages）
-3. 根据接口方法找到具体实现          AoP     AopProxyFactory
-4. 猜测类名方法名（比如doGetBean,doCreateBean）
-5. 看控制台日志
-
-### 心态
-
-- 克服对源码的恐惧心理        
-
-- 静下心读源码
-
-
-
 ## Nacos源码分析
-
-### Nacos源码编译运行
-
-源码下载地址：https://github.com/alibaba/nacos/   
-
-版本： Nacos 1.1.4
-
-![img](spring-cloud-alibaba.assets/clipboard-1596109147015.png)
-
-1）进入nacos目录，执行编译命令
-
-```shell
-mvn -Prelease-nacos -DskipTests clean install -U
-```
-
-编译成功后会在distribution/target目录下生成==nacos-server-1.1.4.tar.gz==
-
-![img](spring-cloud-alibaba.assets/clipboard-1596109198808.png)
-
-2）启动nacos
-
-进入console模块，找到启动类 com.alibaba.nacos.Nacos，执行main方法
-
-![img](spring-cloud-alibaba.assets/clipboard-1596109210512.png)
-
-- 配置启动参数 
-
-单机模式执行需要指定nacos.standalone=true
-
-```
--Dnacos.standalone=true -Dnacos.home=D:\code\java_yuanma\nacos-1.1.4
-```
-
-- 创建nacos_config数据库（distribution/conf/nacos-mysql.sql）
-- 在application.properties中添加mysql配置
-
-```
-# 支持mysql
-spring.datasource.platform=mysql
-db.num=1
-db.url.0=jdbc:mysql://127.0.0.1:3306/nacos_config?characterEncoding=utf8\
-  &connectTimeout=1000&socketTimeout=3000&autoReconnect=true
-db.user=root
-db.password=root
-```
-
-3）进入[http://localhost:8848/nacos](http://localhost:8848/nacos/#/login)，用户名和密码默认nacos
-
-![img](spring-cloud-alibaba.assets/clipboard-1596109370048.png)
-
-
 
 ### 注册中心源码分析
 
