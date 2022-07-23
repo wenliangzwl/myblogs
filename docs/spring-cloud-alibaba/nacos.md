@@ -623,4 +623,5 @@ GenericScope.BeanLifecycleWrapper#getBean
 
 ### 注册中心源码分析
 
+
 https://www.processon.com/view/link/5ea27ca15653bb6efc68eb8c
