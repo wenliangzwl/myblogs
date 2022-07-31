@@ -2,9 +2,9 @@
 
    HashMap 线程不安全
    
-   HashMap 底层是基于 数组 + 链表 组成的, 头插法  (jdk.1.7) 
+   HashMap 底层是基于数组 + 链表组成的, 头插法  (jdk.1.7) 
    
-   HashMap 底层是基于 数组 + 链表 + 红黑树组成的,尾插法  (jdk.1.8)
+   HashMap 底层是基于数组 + 链表+ 红黑树组成的,尾插法  (jdk.1.8)
 
 #### 1,7 HashMap
   1.7 数据结构图
@@ -85,8 +85,7 @@ get 方法
     在上文的HashMap 扩容的时候会调用 resize() 方法，就是这里的并发操作容易在一个桶上形成环形链表；这样当获取一个不存在的key 时，计算出的index 正好是环形链表的下标就会出现死循环。
  
    ![](collection.assets/Image11.png) 
- 
- 
+
 ###  ConcurrentHashMap 
 
    线程安全的（但不是绝对安全）

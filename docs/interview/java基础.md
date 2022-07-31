@@ -151,7 +151,20 @@
    
    5. "总结": 当操作是在一列数据的后面添加数据而不是在前面或中间，并且需要随机地访问其中的元素时，使用ArrayList 会提供比较好的性能;
    当你的操作是在一列数据的前面或中间添加或删除数据，并且安装顺序访问其中的元素时，就应该使用LinkedList 了。
-   
+      
+   6. ArrayList 和 LinkedList 都实现了 List 接口，但是 LinkedList 还额外实现了 Deque 接口，所以LinkedList 还可以当做队列来使用
+
+#### CopyOnWriteArrayList 的底层原理是怎样的
+
+   1. CopyOnWriteArrayList 内部也是通过数组来实现的，在向 CopyOnWriteArrayList 添加元素时，会复制一个新的数组，写操作在新数组上进行，读操作在原数组上进行
+
+   2. 并且 写操作会加锁，防止出现并发写入丢失数据问题。
+
+   3. 写操作结束之后会把原数组指向新数组
+
+   4. CopyOnWriteArrayList 允许在写操作时来读取数据，大大提高了读的性能，因此适合读多写少 的应用场景，但是 CopyOnWriteArrayList 会比较占内存，同时可能 
+      读到的数据不是实时最新的数据，所以不适合实时性要求很高的场景。
+
 #### 实现线程的方式
    
    继承Thread 
