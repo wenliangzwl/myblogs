@@ -74,8 +74,9 @@
        
 #### == & equals 的区别
    
-   "==": 比较基本数据类型是比较数值； 引用类型比较的是内存地址
-   "equals": 判断两个变量或实例所指向的内存空间的值是否相同(比较内容是否相等)
+   "==": 比较基本数据类型是比较数值； 引用类型比较的是内存(引用)地址
+   "equals": 判断两个变量或实例所指向的内存空间的值是否相同(比较内容是否相等)， 但是具体得看各个类重写equals 方法之后的比较逻辑，比如string 类，虽然是引用类型，但是重写了 equals 方法，
+    方法内部比较的是字符串的各个字符是否全部相等
 
 #### final 
    
@@ -125,17 +126,65 @@
    
 #### 方法重写 与重载的区别
    
-   "重写" 发生再父类子类中，参数方法名相同
+   "重写" 发生在父类子类中，方法名相同、参数列表相同，返回值范围小于等于父类，抛出的异常范围小于等于父类，访问修饰符范围大于等于父类; 如果父类方法访问修饰符为private 则子类就不能重写该方法。
    
-   "重载" 发生再类里，方法名相同，参数不同
+   "重载" 发生在类里，方法名相同，参数类型不同、个数不同、顺序不同，方法返回值和访问修饰符可以不同，发送在编译时
+
+```
+public int add(int a, int b);
+public String add(int a, int b)
+// 编译时会报错 ，不是重载
+```
 
 #### List 和 Set 区别
    
-   "list" 有序、重复
+   "list" 有序、重复, 按照对象进入的顺序保存数据，允许多个null 元素对象，可以使用iterator 取出所有元素，在逐一遍历，还可以使用get(int index) 获取指定下标的元素
    
-   "set" 无序、不重复
+   "set" 无序、不重复， 最多允许有一个null 元素对象，取数据时只能用 iterator 接口取得所有元素，再 逐一遍历各个元素。
     
         "无序不是可排序，而是加入的顺序是随机的"
+
+```java
+public class Main {
+
+    public static void main(String[] args) {
+
+        ArrayList<String> list = new ArrayList<>();
+
+        list.add("1");
+        list.add("2");
+        // 允许多个空值
+        list.add(null);
+        list.add(null);
+
+        // 根据 下标访问
+        System.out.println(list.get(0));
+
+        // 使用迭代器 访问
+        Iterator<String> iterator = list.iterator();
+        while (iterator.hasNext()) {
+            String next = iterator.next();
+            System.out.println(next);
+        }
+
+        System.out.println("======================");
+
+        Set<String> set = new HashSet<>();
+
+        set.add("11");
+        set.add("22");
+        // 最多允许一个空值
+        set.add(null);
+        set.add(null);
+
+        Iterator<String> iterator1 = set.iterator();
+        while (iterator1.hasNext()) {
+            String next = iterator1.next();
+            System.out.println(next);
+        }
+    }
+}
+```
 
 #### ArrayList 和 LinkedList 的区别
 
@@ -336,7 +385,7 @@
    被动的方法(其实就是回调方法)，不需要我们调用。
 
 
-#### Error 类和Exception 类的父类都是Throwable 类，他们的区别如下:
+#### Error 类和 Exception 类的父类都是Throwable 类，他们的区别如下:
    
    Error 类一般是指与虚拟机相关的问题，如系统崩溃，虚拟机错误，内存空间不足，方法调用栈溢出等。
    对于这类错误的导致应用程序中断，仅靠程序本身无法恢复和预防，遇到这样的错误,建议让程序终止。
@@ -389,6 +438,39 @@
        
        5. token机制 token机制的核心思想是为每一次操作生成一个唯一性的凭证，也就是token。一个token在操作的每一个阶段只有一次执行权，一旦执行成功则保存执行结果。对重复的请求，返回同一个结果。token机制的应用十分广泛。
 
+
+#### JDK 、 JRE、 JVM 之间的区别 
+
+   JDK(java SE Development kit): java 标准开发包，它提供了编译、允许java 程序所需的各种工具和资源，包括java 编译器、java运行时环境、以及常用的java类库等 
+
+   JRE(Java Runtime Environment): java 运行环境，用于运行java 的字节码文件，JRE 中包括JVM 以及 JVM 工作所需要的类库，普通用户而只需要安装JRE来运行java 程序，而程序开发者必须安装jdk 来编译、调试程序。 
+
+   JVM(java Virtual Mechinal): java 虚拟机，是jre 中的一部分，它是整个java 实现跨平台的最核心的部分，复制运行字节码文件。
+
+   jvm 在执行java字节码时，需要把字节码解释为机器指令，而不同的操作系统的机器指令是有可能不一样的，所以就导致不同的操作系统上的jvm 是不一样的。所以在安装jdk 时需要选择操作系统. 
+
+#### hashCode 与 equals() 之间的关系 
+
+   在java 中，每个对象都可以调用自己的hashCode() 方法得到自己的哈希值(hashCode), 相对于对象的指纹信息，通常来说世界上没有完全相同的两个指纹，但是在java 中 做不到这么绝对，但是我们仍然可以利用hashCode 
+   来做一些提前的判断，比如: 
+
+    1. 如果两个对象的hashCode 不相等，那么这两个对象肯定不是同一个对象
+
+    2. 如果两个对象的hashCode 相等，不代表这两个对象一定是同一个对象，也可能是两个对象
+
+    3. 如果两个对象相等，那么他们的 hashCode 就一定相同。
+
+   在java的一些集合类的实现中，在比较两个对象是否相等时，会根据上面的原则，会先调用对象的hashCode() 方法得到hashCode 进行比较，如果hashCode 不相同，就可以直接认为这两个对象不相同，如果
+   hashCode 相同，那么就会进一步调用equals() 方法进行比较，而 equals() 方法，就是用来最终确认两个对象是不是相等的，通常equals 方法的实现会比较重，逻辑比较多，而 hashCode() 主要就是得到一个哈希值， 
+   实际上就一个数字，相对而言比较轻，所以比较两个对象时，通常都会先根据 hashCode 先比较一下. 
+
+   注意: 重写了 equals() 方法，那么就要注意 重新 hashCode() 方法，一定要保证能遵守上述规则。
+
+#### 泛型中 extends 和 super 的区别 
+
+   1. <? extends T> 表示包括T在内的任何T的子类
+
+   2. <? super T> 表示包括T 在内的任何T的 父类 
 
 #### Java 中使用的是值传递还是引用传递？
 
