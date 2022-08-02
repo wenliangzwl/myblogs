@@ -14,7 +14,68 @@
     
    *Spring框架的核心*: Ioc 容器和AOP 模块。通过IOC 容器管理POJO 对象以及他们之间的耦合关系；通过AOP 以动态非入侵的方式增强服务。
    IOC 让相互协作的组件保持松散的耦合，而AOP 编程运行你把遍布于应用各层的功能分离出来形成可重用的功能组件.
+
+#### 谈谈对 IOC 的理解 
+
+   通常，我们认为spring 有两大特性 IOC 和  AOP 
+
+   对于很多人来说，ioc 这个概念给人的感觉就是 好像会，但是说不出来。 
+
+   那么ioc 到底是什么，接下来说说我的理解，实际上这是一个非常大的问题，所以需要把它拆开来回答，io 表示控制反转,那么: 
+
+      1. 什么是控制? 控制了什么? 
+      2. 什么是反转，反转之前是谁控制的，反转之后又是谁控制的？如何控制的。
+      3. 为什么要反转，反转之前有什么问题？ 反转之后有什么好处？ 
+
+   这就是解决这一类大问题的思路，大而化小。 
+
+   那么，先解决第一个问题，什么是控制，控制了什么？ 
+
+   在用spring 的时候，我们需要做什么: 
+      
+      1. 建一些类，比如UserService、OrderService
+      2. 用一些注解，比如 @Autowired 
+
+   但是，我们也知道，当程序运行时，用的是具体的Userservice对象，OrderService 对象，那这些对象是什么时候创建的，谁创建的，包括对象里的属性是什么时候赋的值？ 
+   谁赋的？ 所有这些都是我们程序员做的，以为我们只是写了类而已，所有的这些都是spring 做的，它才是幕后黑手。
+
+   这就是控制: 
    
+      1. 控制对象的创建
+      2. 控制对象内属性的赋值。
+
+   如果我们不用spring ，那么我们就得自己来做这两件事，反过来，用spring ,这两件事情就不用我们来做了，我们要做的仅仅是定义类，以及定义哪些属性需要spring 来赋值
+   (比如某个属性上加 @Autowired) ,而这其实就是第二个问题的答案，这就是反转， 表示一种对象控制权的转移。 
+
+   那反转有什么用，为什么要反转？
+
+   如果我们自己来负责创建对象，自己来给对象中的属性赋值，会出现什么情况？ 
+   
+   比如现在有三个类： 
+
+      1. A类， A类中有一个属性C c; 
+      2. B类，B类中有一个属性 C c;
+      3. C类; 
+
+   现在 程序要运行，这三个类的对象都需要创建出来，并且相应的属性都需要有值，那么除开定义的这三个类之外，我们还得写： 
+
+      1. A a = new A();
+      2. B b = new B(); 
+      3. C c = new C();
+      4. a.c = c; 
+      5. b.c = c; 
+
+   这五行代码是不用spring 情况下多出来的代码，而且，如果类再多一些，类中的属性再多一些，那相应的代码会更多，而且代码会更复杂。所以我们可以发现，我们自己来控制
+   比交给spring 来控制，我们的代码量以及代码复杂度是要高很多的，反言之，将对象交给spring 来控制，减轻了程序员的负担。 
+
+   总结，ioc 表示控制反转，表示如果用spring ,那么spring 会负责来创建对象，以及给对象内的属性赋值，也就是如果用spring ,那么对象的控制权会转交给spring。
+
+#### 单例Bean 和单例模式 
+
+   单例模式 表示 jvm 中 某个类 只会存在唯一一个 
+
+   而单例bean 并不表示 jvm 中 只能存在唯一的某个类的 Bean 对象。
+
 #### 什么是Spring IOC 容器 ？
    
    SpringIOC 负责创建对象,管理对象(通过依赖注入(DI)),装配对象,配置对象,并且管理这些对象的整个生命周期。
@@ -112,6 +173,18 @@
    5.观察者模式: 定义对象键一种一对多的依赖关系，当一个对象的状态发送改变时，所以依赖于它的对象都会得到通知被制动更新。如Spring 中listener 
    的实现-ApplicationListener 
 
+   6. 原型模式: 原型bean 
+
+   7. 构造器模式: BeanDefinitionBuilder 
+
+   8. 适配器模式: AdvisorAdapter、ApplicationListenerMethodAdapter 
+
+   9. 装饰器模式: BeanWrapper 
+
+   10. 策略模式: BeanNameGenerator、 InstatiationStrategy 
+
+   11. 责任链模式: DefaultAdvisorChainFactory 
+
 #### Spring IOC 的实现机制
    
    Spring IOC 的实现原理就是工厂模式加反射机制
@@ -124,7 +197,7 @@
    BeanFactory: 是spring 里面最底层的接口,包含了各种Bean 的定义,读取bean 配置文档,管理bean 的加载、实例化、控制bean 的生命周期，维护bean
    之间的依赖关系
    
-   ApplicationContext: 作为BeanFactory 的派生,除了提供BeanFactory s所具备的功能外,还提供了更完整的框架功能。
+   ApplicationContext: 作为BeanFactory 的派生,除了提供BeanFactory s所具备的功能外,还提供了更完整的框架功能。（比如: 获取系统环境变量、国际化、事件发布等）
    
 #### 什么是Spring 的内部bean ? 什么是Spring inner beans ？
    
@@ -173,7 +246,6 @@
     
 #### Spring 的 AOP 的使用场景？AOP 机制有什么好处？
 
-
 #### 事务的隔离级别和传播行为
 
    事务的隔离级别
@@ -197,10 +269,84 @@
       PROPAGATION_NESTED 如果当前事务存在，则嵌套事务执行                     -- nested
 
 
-#### Spring Bean的生命周期
+#### spring 事务什么时候会失效？ 
 
-   1. 实例化 Instantiation
-   2. 属性赋值 Populate
-   3. 初始化 Initialization
-   4. 销毁 Destruction
+   spring 事务的原理是 AOP , 进行了切面增强，那么失效的根本原因就是这个 aop 不起作用，常见的情况有以下几种: 
+
+      1. 发生自调用，类里面使用this 调用本类的方法(this通常省略)， 此时这个this 对象不是代理对象，而是 UserService 对象本身
+      解决方法: 让那个this 变成 UserService 的代理类即可。
+
+      2. 方法 不是 public 的 @Transactional 只能用于 public 的方法上，否则事务不会生效，如果要用在 非 public 方法上，可以开启 AspectJ 代理模式 
+
+      3. 数据库不支持事务
+
+      4. 没有被spring 管理 
+
+      5. 异常被吃掉，事务不会回滚(或者抛出的异常没有被定义，默认为 RuntimeException)
+
+#### spring 中的事务是如何实现的？ 
+
+   1. spring 事务底层是基于数据库事务和AOP机制实现的。
+   
+   2. 首先对 使用了 @Transactional 注解的bean ，spring 会创建一个代理对象 
+
+   3. 当 调用代理对象的方法时，会先判断该方法上是否加了 @Transactional 注解。
+
+   4. 如果加了，那么则利用事务管理器 创建一个数据库连接。 
+
+   5. 并且修改 数据库连接的 autocommit 属性为 false, 禁止此连接的自动提交，这是实现 spring 事务非常重要的一步。
+
+   6. 然后执行 当前方法，方法中会执行 sql 
+
+   7. 执行完当前方法 后，如果没有出现异常就直接提交事务.
+
+   8. 如果出现了异常，并且这个异常是需要回滚的就会回滚事务，否则 仍然提交事务。
+
+   9. spring 事务隔离级别对应的就是 底层数据库的事务隔离级别
+
+   10. spring 事务的传播机制是spring 事务自己实现的，也是spring 事务中最复杂的一块。
+
+   11. spring 事务的传播机制是基于 数据库连接来做的，一个数据库连接一个事务，如果传播机制配置为新开一个事务，那么实际上就是先建立一个数据库连接， 再次数据库连接上执行sql.
+
+#### Spring Bean 创建的生命周期有哪些步骤
+
+   1. 推断构造方法
+   
+   2. 实例化 ,Instantiation
+
+   3. 填充属性 ,Populate
+
+   4. 处理 Aware 回调 
+
+   5. 初始化前 ， 处理 @PostConstruct 注解 
+
+   6. 初始化，处理 Initialization 接口
+
+   7. 初始化后 进行 AOP 
+
+   8. 销毁 Destruction
+
+#### spring 容器启动流程是怎么样的
+
+   1. 在创建spring 容器，也就是启动 spring 时，
+
+   2. 首先会进行扫描，扫描得到所有的BeanDefinition 对象，并存入 Map 中。 
+
+   3. 然后 筛选出非懒加载的单例 BeanDefinition 进行创建 Bean, 对于多例 Bean 不需要在启动中进行创建，对于多例Bean 会在每次获取Bean 时 利用 BeanDefinition 
+   去创建。 
+      
+   4. 利用 BeanDefinition 创建bean 就是 bean 的生命周期，这期间包括了 合并 BeanDefinition ，推断构造方法、实例化、属性填充、初始化前、初始化、初始化后等多个步骤，
+      其中 AOP 就是发送在 初始化后。 
+
+   5. 单例bean 创建完后，spring 会发布一个容器启动事件。 
+
+   6. spring 启动结束。 
+
+   7. 在源码中会更复杂，比如源码中会提供一些模板方法，让子类实现，比如源码中还会涉及一些 BeanFactoryPostProcessor 和 BeanPostProcessor 的注册，spring 的扫描就是 通过
+      BeanFactoryPostProcessor来实现的，依赖注入就是通过 BeanPostProcessor 来实现的。 
+      
+   8. 在 spring 启动过程中 还会去处理 @Import 等注解。
+
+
+
 

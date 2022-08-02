@@ -45,3 +45,25 @@
    配置在应用程序上下文的引导阶段生效。一般来说我们在Spring Cloud Config 或者 Nacos 中会用到，且bootstrap 里面的属性不能被覆盖
    
    application (.yml 或者 .properties): 由ApplicationContext 加载，用于Spring Boot 项目的自动化配置。
+
+#### 6. springBoot 中常用注解 及其底层实现 
+
+   1. @SpringBootApplication 注解，这个注解标识了一个 springBoot 工程，它实际上是另外是三个注解的组合： 
+
+      a. @SpringBootConfiguration: 这个注解实际上就是 一个 @Configuration 注解，表示启动类也是一个配置类
+
+      b. @EnableAutoConfiguration : 向 spring 容器中导入 一个 Selector ，用来加载 classpath 下 springFactories 中所定义的自动配置类，将这些自动配置类 加载为配置Bean 
+
+      c. @ComponentScan： 标识扫描路径，因为默认是没有配置实际扫描路径的，所以springboot 扫描的路径是启动类所在的当前目录。 
+
+   2. @Bean 注解 ，用来定义Bean ,类似于 xml 中的 <Bean> 标签，spring 在启动的时候，会对 加了 @Bean 注解的方法进行解析，将方法的名字做为beanName ,并通过执行方法得到bean; 
+
+   3. @Controller @Service @ResponseBody @Autowired 等等。
+
+#### springboot 是如何启动tomcat 的 
+
+   1. 首先，springboot 在启动时会先创建spring 容器。
+
+   2. 在创建spring 容器过程中，会利用 @ConditionalClass 技术来判断当前 classpath 中是否存在 tomcat 依赖，如果存在 则会生成一个启动Tomcat 的 Bean 
+
+   3. spring 容器创建完之后，就会 获取 启动 Tomcat 的Bean ,并 创建 Tomcat 对象，绑定端口，然后启动 Tomcat 

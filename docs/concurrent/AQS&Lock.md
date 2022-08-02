@@ -692,7 +692,7 @@ main count down is ok
 ====end====
 ```
 
-### CountDownLatch与CyclicBarrier、Semaphore  区别
+### CountDownLatch 与 CyclicBarrier、Semaphore  区别
   
        1.CountDownLatch的计数器只能使用一次，而CyclicBarrier的计数器可以使用reset()方法重置。所以CyclicBarrier能处理更为复杂的业务场景。
        例如，如果计算发生错误，可以重置计数器，并让线程重新执行一次
@@ -704,8 +704,8 @@ main count down is ok
        6.Semaphore ，需要拿到许可才能执行，并可以选择公平和非公平模式。
 
 ### AQS图
-  ![AQS图](并发编程基础.assets/AQS.jpg)
 
+  ![AQS图](并发编程基础.assets/AQS.jpg)
 
 ## Java线程的中断机制
 
