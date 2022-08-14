@@ -102,7 +102,7 @@ get 方法
         负数代表正在进行初始化或扩容操作
         -1代表正在初始化，
         -N表示有N-1个线程正在进行扩容操作
-        正数或0代表hash表还没有被初始化：这个数值表示初始化或下一代进行扩容的大小，它的值是当前ConcurrentHashMap 容量的0。75倍，这与loadfactor 是对应的。
+        正数或0代表hash表还没有被初始化：这个数值表示初始化或下一代进行扩容的大小，它的值是当前ConcurrentHashMap 容量的0.75倍，这与loadfactor 是对应的。
    
 ####  1.7 concurrentHashMap
     
