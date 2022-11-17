@@ -215,7 +215,7 @@ jps -l
 
 spring-boot-skywalking-demo-1.0-SNAPSHOT.jar
 
-##### 4.1.1.2 编写启动脚本 startup.sh 
+##### 4.1.1.2 编写启动脚本 startup.sh  
 
 ```shell
 #!/bin/sh

@@ -598,10 +598,6 @@ appendfilename "appendonly.aof" # 文件名
 appendfsync everysec # 每秒一次
 # appendfsync no # 由操作系统执行，默认Linux配置最多丢失30秒
 
-作者：一车面包人
-链接：https://juejin.cn/post/6858901608361787400
-来源：稀土掘金
-著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
 ```
 
 ##### 3.aof重写机制
