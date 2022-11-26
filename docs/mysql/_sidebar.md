@@ -12,4 +12,5 @@
   - [Mysql事务以及锁原理](mysql/Mysql事务以及锁原理.md)
   - [Mysql索引](mysql/索引.md)
   - [Mysql日志](mysql/Mysql日志.md)
+  - [Mysql工具命令](mysql/Mysql工具命令.md)
 - [首页](README.md)
